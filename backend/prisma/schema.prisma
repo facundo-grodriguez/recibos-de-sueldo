@@ -1,0 +1,215 @@
+// Fase 0: entidades mínimas (Usuario, Empresa, Empleado) + AuditLog transversal.
+// Fase 1: Importacion + ImportacionFila (ingesta: conector CSV -> modelo canónico).
+// Fase 2: PerfilMapeoConcepto (mapeo de conceptos a categorías normativas, reutilizable por empresa).
+// Fase 3 (Validación) no agrega tablas: calcula todo al vuelo sobre lo anterior.
+// Fase 4: Recibo (emisión inmutable) + campos de cabecera del art. 140 en Empleado/Importacion.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Usuario {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  passwordHash String   @map("password_hash")
+  nombre       String
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  // Fase 5: deslinde contractual (repositorio técnico, no archivo legal oficial
+  // — ver ADR-018). Null hasta que el registro completa la aceptación explícita.
+  aceptoTerminosEn DateTime? @map("acepto_terminos_en")
+
+  empresas Empresa[]
+
+  @@map("usuarios")
+}
+
+model Empresa {
+  id             String   @id @default(uuid())
+  usuarioId      String   @map("usuario_id")
+  razonSocial    String   @map("razon_social")
+  nombreFantasia String?  @map("nombre_fantasia")
+  cuit           String
+  domicilio      String?
+  localidad      String?
+  provincia      String?
+  codigoPostal   String?  @map("codigo_postal")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  usuario              Usuario               @relation(fields: [usuarioId], references: [id])
+  empleados            Empleado[]
+  importaciones        Importacion[]
+  perfilMapeoConceptos PerfilMapeoConcepto[]
+
+  @@unique([usuarioId, cuit])
+  @@index([usuarioId])
+  @@map("empresas")
+}
+
+model Empleado {
+  id        String   @id @default(uuid())
+  empresaId String   @map("empresa_id")
+  nombre    String
+  apellido  String
+  cuil      String
+  estado    String   @default("activo")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  // Fase 4: ficha del empleado, se carga una vez y se reutiliza en cada recibo.
+  categoria    String?
+  fechaIngreso DateTime? @map("fecha_ingreso")
+  // Rediseño de plantilla: campo de la plantilla oficial, informativo.
+  legajo       String?
+  // Modelo funcional del Anexo III (docs/modelo-funcional-anexo-iii.md): campo real de la plantilla oficial, distinto de "lugar de pago".
+  banco        String?
+
+  empresa Empresa  @relation(fields: [empresaId], references: [id])
+  recibos Recibo[]
+
+  @@unique([empresaId, cuil])
+  @@index([empresaId])
+  @@map("empleados")
+}
+
+// Lote de importación de un archivo de liquidación (Fase 1: ingesta).
+// estado: "previsualizada" (recién parseada, aún no confirmada) | "confirmada" (ya generó/actualizó Empleados).
+model Importacion {
+  id               String   @id @default(uuid())
+  empresaId        String   @map("empresa_id")
+  usuarioId        String   @map("usuario_id")
+  anio             Int
+  mes              Int
+  nombreArchivo    String   @map("nombre_archivo")
+  estado           String   @default("previsualizada")
+  fechaImportacion DateTime @default(now()) @map("fecha_importacion")
+
+  // Fase 4: datos de cabecera del período, obligatorios antes de poder emitir
+  // recibos (se completan aparte, no en el momento de importar el archivo).
+  fechaPago               DateTime? @map("fecha_pago")
+  lugarPago               String?   @map("lugar_pago")
+  fechaPagoCargasSociales DateTime? @map("fecha_pago_cargas_sociales")
+  lugarPagoCargasSociales String?   @map("lugar_pago_cargas_sociales")
+
+  empresa Empresa           @relation(fields: [empresaId], references: [id])
+  filas   ImportacionFila[]
+  recibos Recibo[]
+
+  @@index([empresaId])
+  @@map("importaciones")
+}
+
+// Una fila canónica (formato largo: empleado + concepto) de una Importación,
+// ya validada. Guarda tanto el dato crudo leído del archivo como el valor
+// parseado, para que el usuario pueda ver exactamente qué estaba mal.
+model ImportacionFila {
+  id            String   @id @default(uuid())
+  importacionId String   @map("importacion_id")
+  numeroFila    Int      @map("numero_fila")
+  cuil          String
+  nombre        String
+  apellido      String
+  concepto      String
+  montoOriginal String   @map("monto_original")
+  monto         Decimal? @db.Decimal(12, 2)
+  valida        Boolean
+  errorMensaje  String?  @map("error_mensaje")
+
+  // Fase 2: nulos hasta que el motor de mapeo clasifica el concepto de la fila.
+  // categoriaContribucion es obligatoria si tipo = "contribucion_patronal",
+  // opcional si tipo = "deduccion" (para cruzar Empleador/Trabajador en el
+  // recibo), y siempre nula en remunerativo/no_remunerativo.
+  tipo                  String?
+  categoriaContribucion String? @map("categoria_contribucion")
+
+  // Auditoría de cálculo, informativa (rediseño de plantilla): tal cual viene
+  // del archivo de origen, nunca se valida contra `monto`.
+  unidad String?
+  base   Decimal? @db.Decimal(12, 2)
+
+  // Fase 6: normalizaciones de formato aplicadas sin bloquear la fila (ej.
+  // "CUIL: se le quitaron los guiones"), puramente informativas.
+  correcciones String[] @default([])
+
+  importacion Importacion @relation(fields: [importacionId], references: [id], onDelete: Cascade)
+
+  @@index([importacionId])
+  @@map("importacion_filas")
+}
+
+// Diccionario reutilizable por empresa: a qué categoría normativa corresponde
+// cada texto de concepto visto en las importaciones. Se define una vez y se
+// reutiliza en todos los períodos siguientes (ver docs/vision-adaptador.md).
+model PerfilMapeoConcepto {
+  id                    String   @id @default(uuid())
+  empresaId             String   @map("empresa_id")
+  conceptoNormalizado   String   @map("concepto_normalizado")
+  conceptoOriginal      String   @map("concepto_original")
+  tipo                  String
+  categoriaContribucion String?  @map("categoria_contribucion")
+  createdAt             DateTime @default(now()) @map("created_at")
+  updatedAt             DateTime @updatedAt @map("updated_at")
+
+  empresa Empresa @relation(fields: [empresaId], references: [id])
+
+  @@unique([empresaId, conceptoNormalizado])
+  @@index([empresaId])
+  @@map("perfil_mapeo_conceptos")
+}
+
+// Documento inmutable generado al emitir (Fase 4). El snapshot guarda la
+// estructura completa y resuelta (empresa, empleado, período, conceptos,
+// totales) tal como estaba en el momento de emitir, para que cambios
+// posteriores en Empleado/Empresa/mapeo nunca alteren un recibo ya emitido.
+// Fase 5 (Repositorio técnico): un recibo se puede anular y reemitir. NO hay
+// índice único en (importacionId, empleadoId) a nivel de base — un anulado y
+// su reemplazo vigente conviven con el mismo par — Postgres/Prisma no admiten
+// un índice único parcial ("solo entre vigentes") de forma declarativa en el
+// schema (ver DECISIONS.md, ADR-040). El invariante "a lo sumo un vigente por
+// empleado+importación" se controla en ReemitirReciboUseCase/EmitirRecibosUseCase.
+model Recibo {
+  id             String   @id @default(uuid())
+  importacionId  String   @map("importacion_id")
+  empleadoId     String   @map("empleado_id")
+  numero         Int
+  snapshot       Json
+  pdfPath        String   @map("pdf_path")
+  hashIntegridad String   @map("hash_integridad")
+  fechaEmision   DateTime @default(now()) @map("fecha_emision")
+
+  estado          String  @default("vigente")
+  motivoAnulacion String? @map("motivo_anulacion")
+  // Si no-nulo: este recibo reemplaza al recibo anulado con este id.
+  reemplazaAId    String? @unique @map("reemplaza_a_id")
+
+  importacion    Importacion @relation(fields: [importacionId], references: [id])
+  empleado       Empleado    @relation(fields: [empleadoId], references: [id])
+  reemplazaA     Recibo?     @relation("ReemplazoRecibo", fields: [reemplazaAId], references: [id])
+  reemplazadoPor Recibo?     @relation("ReemplazoRecibo")
+
+  @@index([importacionId, empleadoId])
+  @@index([importacionId])
+  @@index([empleadoId])
+  @@map("recibos")
+}
+
+// Append-only. Nunca se actualiza ni se borra (ver docs/constitucion-tecnica.md, fuera de este repo).
+model AuditLog {
+  id            String   @id @default(uuid())
+  usuarioId     String?  @map("usuario_id")
+  timestamp     DateTime @default(now())
+  entidad       String
+  entidadId     String   @map("entidad_id")
+  accion        String
+  campo         String?
+  valorAnterior String?  @map("valor_anterior")
+  valorNuevo    String?  @map("valor_nuevo")
+
+  @@index([entidad, entidadId])
+  @@index([usuarioId])
+  @@map("audit_log")
+}
