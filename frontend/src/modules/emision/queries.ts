@@ -13,8 +13,8 @@ export function recibosKey(empresaId: string, importacionId: string) {
   return ['recibos', empresaId, importacionId] as const;
 }
 
-export function historialRecibosKey(empresaId: string, empleadoId?: string) {
-  return ['recibos-historial', empresaId, empleadoId ?? null] as const;
+export function historialRecibosKey(empresaId: string, empleadoId?: string, pagina?: number) {
+  return ['recibos-historial', empresaId, empleadoId ?? null, pagina ?? 1] as const;
 }
 
 export function auditoriaReciboKey(empresaId: string, importacionId: string, reciboId: string) {
@@ -30,11 +30,11 @@ export function useRecibos(empresaId: string, importacionId: string) {
   });
 }
 
-export function useHistorialRecibos(empresaId: string, empleadoId?: string) {
+export function useHistorialRecibos(empresaId: string, empleadoId?: string, pagina?: number) {
   const { token } = useAuth();
   return useQuery({
-    queryKey: historialRecibosKey(empresaId, empleadoId),
-    queryFn: () => listarHistorialRecibos(token as string, empresaId, empleadoId),
+    queryKey: historialRecibosKey(empresaId, empleadoId, pagina),
+    queryFn: () => listarHistorialRecibos(token as string, empresaId, empleadoId, pagina),
     enabled: token !== null && empresaId !== '',
   });
 }

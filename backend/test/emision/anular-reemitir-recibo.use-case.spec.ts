@@ -11,7 +11,12 @@ import {
   ActualizarEmpleadoData,
   EmpleadoRepository,
 } from '../../src/modules/empleados/domain/empleado.repository';
-import { CrearReciboData, ReciboFiltroEmpresa, ReciboRepository } from '../../src/modules/emision/domain/recibo.repository';
+import {
+  CrearReciboData,
+  ReciboFiltroEmpresa,
+  ReciboHistorialPagina,
+  ReciboRepository,
+} from '../../src/modules/emision/domain/recibo.repository';
 import { ReciboSnapshot } from '../../src/modules/emision/domain/recibo-snapshot';
 import { ValidarImportacionUseCase } from '../../src/modules/validacion/application/validar-importacion.use-case';
 import { Empleado } from '../../src/modules/empleados/domain/empleado.entity';
@@ -180,7 +185,7 @@ class ReciboRepositoryFake implements ReciboRepository {
     return this.recibos.find((r) => r.id === id && r.importacionId === importacionId) ?? null;
   }
 
-  async findAllByEmpresa(_empresaId: string, _filtro?: ReciboFiltroEmpresa): Promise<Recibo[]> {
+  async findAllByEmpresa(_empresaId: string, _filtro?: ReciboFiltroEmpresa): Promise<ReciboHistorialPagina> {
     throw new Error('no usado en este test');
   }
 

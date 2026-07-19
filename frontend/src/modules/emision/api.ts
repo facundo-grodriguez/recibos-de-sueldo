@@ -99,11 +99,22 @@ export function obtenerAuditoriaRecibo(
   );
 }
 
+export interface HistorialRecibosPagina {
+  recibos: Recibo[];
+  total: number;
+  pagina: number;
+  porPagina: number;
+}
+
 export function listarHistorialRecibos(
   token: string,
   empresaId: string,
   empleadoId?: string,
-): Promise<Recibo[]> {
-  const query = empleadoId ? `?empleadoId=${empleadoId}` : '';
-  return request<Recibo[]>(`/empresas/${empresaId}/recibos${query}`, { token });
+  pagina?: number,
+): Promise<HistorialRecibosPagina> {
+  const params = new URLSearchParams();
+  if (empleadoId) params.set('empleadoId', empleadoId);
+  if (pagina) params.set('pagina', String(pagina));
+  const query = params.toString() ? `?${params.toString()}` : '';
+  return request<HistorialRecibosPagina>(`/empresas/${empresaId}/recibos${query}`, { token });
 }

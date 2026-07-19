@@ -7,8 +7,12 @@ import { Recibo } from '../domain/recibo.entity';
 import {
   CrearReciboData,
   ReciboFiltroEmpresa,
+  ReciboHistorialPagina,
   ReciboRepository,
 } from '../domain/recibo.repository';
+
+const PAGINA_POR_DEFECTO = 1;
+const TAMANIO_PAGINA_HISTORIAL_POR_DEFECTO = 20;
 
 function aDominio(registro: ReciboRegistro): Recibo {
   return Recibo.create({
@@ -66,15 +70,32 @@ export class PrismaReciboRepository implements ReciboRepository {
     return registro ? aDominio(registro) : null;
   }
 
-  async findAllByEmpresa(empresaId: string, filtro?: ReciboFiltroEmpresa): Promise<Recibo[]> {
-    const registros = await this.prisma.recibo.findMany({
-      where: {
-        importacion: { empresaId },
-        empleadoId: filtro?.empleadoId,
-      },
-      orderBy: [{ fechaEmision: 'desc' }],
-    });
-    return registros.map(aDominio);
+  async findAllByEmpresa(empresaId: string, filtro?: ReciboFiltroEmpresa): Promise<ReciboHistorialPagina> {
+    const pagina = filtro?.pagina ?? PAGINA_POR_DEFECTO;
+    const porPagina = filtro?.porPagina ?? TAMANIO_PAGINA_HISTORIAL_POR_DEFECTO;
+    const where: Prisma.ReciboWhereInput = {
+      importacion: { empresaId },
+      empleadoId: filtro?.empleadoId,
+    };
+
+    const [registros, total] = await Promise.all([
+      this.prisma.recibo.findMany({
+        where,
+        // Ordenar por `numero` (correlativo por empresa, asignado antes de
+        // paralelizar) en vez de por `fechaEmision`: con la emisión en lote
+        // paralelizada (perfil de rendimiento, 2026-07-19), el orden real de
+        // finalización de cada PDF ya no coincide con el orden lógico de
+        // numeración — ordenar por fecha podía mostrar, por ejemplo, el
+        // recibo Nº89 antes que el Nº90 del mismo lote. `numero` es
+        // monótono y sin ambigüedad incluso bajo concurrencia.
+        orderBy: [{ numero: 'desc' }],
+        skip: (pagina - 1) * porPagina,
+        take: porPagina,
+      }),
+      this.prisma.recibo.count({ where }),
+    ]);
+
+    return { recibos: registros.map(aDominio), total, pagina, porPagina };
   }
 
   async findByReemplazaAId(reciboId: string): Promise<Recibo | null> {

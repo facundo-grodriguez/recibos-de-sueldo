@@ -3,7 +3,7 @@ import { AuditLogEntry, AuditLogRepository } from '../../src/infra/auditoria/aud
 import { NotFoundError } from '../../src/shared/errors/not-found-error';
 import { ListarAuditoriaReciboUseCase } from '../../src/modules/emision/application/listar-auditoria-recibo.use-case';
 import { Recibo } from '../../src/modules/emision/domain/recibo.entity';
-import { ReciboRepository } from '../../src/modules/emision/domain/recibo.repository';
+import { ReciboHistorialPagina, ReciboRepository } from '../../src/modules/emision/domain/recibo.repository';
 import { ReciboSnapshot } from '../../src/modules/emision/domain/recibo-snapshot';
 import { Empresa } from '../../src/modules/empresas/domain/empresa.entity';
 import { EmpresaRepository } from '../../src/modules/empresas/domain/empresa.repository';
@@ -106,7 +106,7 @@ class ReciboRepositoryFake implements ReciboRepository {
     return this.recibo;
   }
 
-  async findAllByEmpresa(): Promise<Recibo[]> {
+  async findAllByEmpresa(): Promise<ReciboHistorialPagina> {
     throw new Error('no usado en este test');
   }
 

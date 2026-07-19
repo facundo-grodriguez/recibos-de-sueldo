@@ -1,4 +1,4 @@
-import { Anchor, Group, Select, Stack, Text, Title } from '@mantine/core';
+import { Anchor, Group, Pagination, Select, Stack, Text, Title } from '@mantine/core';
 import { IconArrowLeft } from '@tabler/icons-react';
 import { useState } from 'react';
 import { Link, useParams } from 'react-router';
@@ -9,13 +9,21 @@ import { useHistorialRecibos } from './queries';
 export function HistorialRecibosPage() {
   const { empresaId } = useParams<{ empresaId: string }>();
   const [empleadoId, setEmpleadoId] = useState<string | null>(null);
+  const [pagina, setPagina] = useState(1);
   const { data: empleados } = useEmpleados(empresaId ?? '');
-  const { data: recibos, isLoading } = useHistorialRecibos(empresaId ?? '', empleadoId ?? undefined);
+  const { data, isLoading } = useHistorialRecibos(empresaId ?? '', empleadoId ?? undefined, pagina);
 
   const opcionesEmpleado = (empleados ?? []).map((empleado) => ({
     value: empleado.id,
     label: `${empleado.apellido}, ${empleado.nombre}`,
   }));
+
+  function handleCambiarEmpleado(valor: string | null): void {
+    setEmpleadoId(valor);
+    setPagina(1);
+  }
+
+  const totalPaginas = data ? Math.max(1, Math.ceil(data.total / data.porPagina)) : 1;
 
   return (
     <Stack gap="md">
@@ -34,13 +42,18 @@ export function HistorialRecibosPage() {
         clearable
         data={opcionesEmpleado}
         value={empleadoId}
-        onChange={setEmpleadoId}
+        onChange={handleCambiarEmpleado}
         w={320}
       />
 
       {isLoading && <Text c="dimmed">Cargando…</Text>}
-      {recibos && recibos.length === 0 && <Text c="dimmed">No hay recibos emitidos todavía.</Text>}
-      {recibos && recibos.length > 0 && empresaId && <RecibosTable empresaId={empresaId} recibos={recibos} />}
+      {data && data.total === 0 && <Text c="dimmed">No hay recibos emitidos todavía.</Text>}
+      {data && data.recibos.length > 0 && empresaId && (
+        <>
+          <RecibosTable empresaId={empresaId} recibos={data.recibos} />
+          {totalPaginas > 1 && <Pagination value={pagina} onChange={setPagina} total={totalPaginas} />}
+        </>
+      )}
     </Stack>
   );
 }

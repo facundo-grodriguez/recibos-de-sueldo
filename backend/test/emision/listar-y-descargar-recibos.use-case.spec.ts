@@ -7,7 +7,11 @@ import { ListarRecibosUseCase } from '../../src/modules/emision/application/list
 import { AlmacenamientoRecibos, GuardarReciboParams } from '../../src/modules/emision/domain/almacenamiento-recibos';
 import { ArchivoParaEmpaquetar, EmpaquetadorZip } from '../../src/modules/emision/domain/empaquetador-zip';
 import { Recibo } from '../../src/modules/emision/domain/recibo.entity';
-import { ReciboFiltroEmpresa, ReciboRepository } from '../../src/modules/emision/domain/recibo.repository';
+import {
+  ReciboFiltroEmpresa,
+  ReciboHistorialPagina,
+  ReciboRepository,
+} from '../../src/modules/emision/domain/recibo.repository';
 import { ReciboSnapshot } from '../../src/modules/emision/domain/recibo-snapshot';
 import { Empresa } from '../../src/modules/empresas/domain/empresa.entity';
 import { EmpresaRepository } from '../../src/modules/empresas/domain/empresa.repository';
@@ -108,8 +112,19 @@ class ReciboRepositoryFake implements ReciboRepository {
     throw new Error('no usado en este test');
   }
 
-  async findAllByEmpresa(_empresaId: string, filtro?: ReciboFiltroEmpresa): Promise<Recibo[]> {
-    return this.recibos.filter((r) => (filtro?.empleadoId ? r.empleadoId === filtro.empleadoId : true));
+  async findAllByEmpresa(_empresaId: string, filtro?: ReciboFiltroEmpresa): Promise<ReciboHistorialPagina> {
+    const filtrados = this.recibos
+      .filter((r) => (filtro?.empleadoId ? r.empleadoId === filtro.empleadoId : true))
+      .sort((a, b) => b.numero - a.numero);
+    const pagina = filtro?.pagina ?? 1;
+    const porPagina = filtro?.porPagina ?? 20;
+    const inicio = (pagina - 1) * porPagina;
+    return {
+      recibos: filtrados.slice(inicio, inicio + porPagina),
+      total: filtrados.length,
+      pagina,
+      porPagina,
+    };
   }
 
   async findByReemplazaAId(): Promise<Recibo | null> {
@@ -261,13 +276,35 @@ describe('ListarHistorialRecibosEmpresaUseCase', () => {
   });
 
   it('devuelve el historial completo, vigentes y anulados', async () => {
-    const recibos = await useCase.execute({ empresaId: EMPRESA_ID, usuarioId: USUARIO_ID });
-    expect(recibos).toHaveLength(3);
+    const resultado = await useCase.execute({ empresaId: EMPRESA_ID, usuarioId: USUARIO_ID });
+    expect(resultado.recibos).toHaveLength(3);
+    expect(resultado.total).toBe(3);
   });
 
   it('filtra por empleado cuando se indica', async () => {
-    const recibos = await useCase.execute({ empresaId: EMPRESA_ID, usuarioId: USUARIO_ID, empleadoId: 'empleado-juan' });
-    expect(recibos.map((r) => r.id).sort()).toEqual(['r1', 'r2']);
+    const resultado = await useCase.execute({ empresaId: EMPRESA_ID, usuarioId: USUARIO_ID, empleadoId: 'empleado-juan' });
+    expect(resultado.recibos.map((r) => r.id).sort()).toEqual(['r1', 'r2']);
+    expect(resultado.total).toBe(2);
+  });
+
+  it('pagina el historial con el tamaño de página por defecto y devuelve el total real, no el de la página', async () => {
+    const resultado = await useCase.execute({ empresaId: EMPRESA_ID, usuarioId: USUARIO_ID, porPagina: 2 });
+    expect(resultado.recibos).toHaveLength(2);
+    expect(resultado.total).toBe(3);
+    expect(resultado.pagina).toBe(1);
+    expect(resultado.porPagina).toBe(2);
+  });
+
+  it('devuelve la segunda página con el resto de los recibos', async () => {
+    const resultado = await useCase.execute({ empresaId: EMPRESA_ID, usuarioId: USUARIO_ID, pagina: 2, porPagina: 2 });
+    expect(resultado.recibos).toHaveLength(1);
+    expect(resultado.total).toBe(3);
+  });
+
+  it('devuelve una lista vacía si la página pedida está fuera de rango', async () => {
+    const resultado = await useCase.execute({ empresaId: EMPRESA_ID, usuarioId: USUARIO_ID, pagina: 5, porPagina: 2 });
+    expect(resultado.recibos).toHaveLength(0);
+    expect(resultado.total).toBe(3);
   });
 
   it('rechaza si la empresa no pertenece al usuario', async () => {

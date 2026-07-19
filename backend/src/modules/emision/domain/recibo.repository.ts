@@ -14,6 +14,18 @@ export interface CrearReciboData {
 
 export interface ReciboFiltroEmpresa {
   empleadoId?: string;
+  /** 1-indexada. Por defecto la primera página (ver `PAGINA_POR_DEFECTO`). */
+  pagina?: number;
+  /** Por defecto `TAMANIO_PAGINA_HISTORIAL_POR_DEFECTO`. */
+  porPagina?: number;
+}
+
+export interface ReciboHistorialPagina {
+  recibos: Recibo[];
+  /** Total de recibos que matchean el filtro, sin paginar — para calcular cuántas páginas hay. */
+  total: number;
+  pagina: number;
+  porPagina: number;
 }
 
 export interface ReciboRepository {
@@ -23,8 +35,12 @@ export interface ReciboRepository {
   /** Solo los recibos vigentes de la importación (vista por defecto). */
   findVigentesByImportacion(importacionId: string): Promise<Recibo[]>;
   findByIdAndImportacion(id: string, importacionId: string): Promise<Recibo | null>;
-  /** Historial completo de la empresa, cruzando todas sus importaciones. */
-  findAllByEmpresa(empresaId: string, filtro?: ReciboFiltroEmpresa): Promise<Recibo[]>;
+  /**
+   * Historial completo de la empresa, cruzando todas sus importaciones —
+   * paginado (perfil de rendimiento, prueba de carga 2026-07-19: el listado
+   * sin paginar ya mostró cientos de filas sin virtualizar en el frontend).
+   */
+  findAllByEmpresa(empresaId: string, filtro?: ReciboFiltroEmpresa): Promise<ReciboHistorialPagina>;
   /** El recibo (si existe) que reemplaza al recibo anulado indicado. */
   findByReemplazaAId(reciboId: string): Promise<Recibo | null>;
   /** Para numerar recibos de forma correlativa por empresa. */

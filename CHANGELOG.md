@@ -2,6 +2,20 @@
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/). Este proyecto aún no tiene versiones publicadas (pre-release).
 
+## [Unreleased] — Prueba de carga real + pool acotado de emisión + paginación del historial
+
+Se ejecutó una prueba de carga real (20/100/300 empleados en una sola importación, contra la API y Postgres reales) para verificar las 4 optimizaciones de la entrada anterior bajo volumen — sin bugs funcionales, y con dos hallazgos reales resueltos en esta misma entrada. Ver ADR-063 en `DECISIONS.md`.
+
+### Cambiado
+- `EmitirRecibosUseCase` genera los PDF del lote con un pool acotado de 5 en simultáneo (`ejecutarConLimite`, utilidad nueva sin librería externa) en vez de uno a la vez — la numeración correlativa se asigna antes de paralelizar para no depender del orden real de finalización. Medido con datos reales: ~364-368ms/empleado (antes ~530ms/empleado), sin cambiar el contrato síncrono de un único request HTTP.
+- Historial de recibos (`GET /empresas/:id/recibos`) paginado (20 por página por defecto, `?pagina=`) tanto en el backend (`ReciboRepository.findAllByEmpresa` devuelve `{ recibos, total, pagina, porPagina }`) como en el frontend (`HistorialRecibosPage`, control de paginación de Mantine).
+
+### Corregido
+- **Bug real encontrado verificando el propio cambio de arriba**: al paralelizar la emisión, ordenar el historial por `fechaEmision` dejó de garantizar el orden de `numero` (dos recibos del mismo lote concurrente pueden completarse en cualquier orden). Corregido ordenando por `numero desc`, el campo correlativo real, asignado de forma determinística antes de paralelizar.
+
+### Verificado
+Backend: `tsc`, lint y 208 tests en verde. Frontend: `tsc`, lint y 24 tests en verde. Contra datos reales: emisión paralela de 25 y 100 empleados sin corrupción entre PDFs concurrentes, historial de 100 recibos paginado en 5 páginas de 20 con orden estrictamente correlativo, navegación entre páginas confirmada en un navegador real.
+
 ## [Unreleased] — Limpieza del entorno de pruebas + 4 optimizaciones de N+1/queries sin límite
 
 Antes de seguir agregando funcionalidad, se pidió un perfil de rendimiento (medir, no optimizar a ciegas) pensando en miles de empleados, y una limpieza completa del entorno (todo lo que había era dato de prueba). Ver ADR-062 en `DECISIONS.md`.
