@@ -173,6 +173,47 @@ describe('generarHtmlRecibo', () => {
     expect(ocurrencias).toBe(1);
   });
 
+  it('separa Remunerativo y No remunerativo en dos tablas distintas cuando hay conceptos de ambos tipos (revisión de fidelidad 2026-07-19: el Excel oficial las trae como tablas separadas)', () => {
+    const snapshot = snapshotBase({
+      conceptos: [
+        ...snapshotBase().conceptos,
+        concepto({ concepto: 'Incremento No Remunerativo', tipo: 'no_remunerativo', monto: 200 }),
+      ],
+    });
+
+    const html = generarHtmlRecibo(snapshot);
+
+    expect(html).toContain('Total remunerativo');
+    expect(html).toContain('Total no remunerativo');
+    const posicionRemunerativo = html.indexOf('Total remunerativo');
+    const posicionNoRemunerativo = html.indexOf('Total no remunerativo');
+    const posicionDeducciones = html.indexOf('Total deducciones');
+    expect(posicionRemunerativo).toBeLessThan(posicionNoRemunerativo);
+    expect(posicionNoRemunerativo).toBeLessThan(posicionDeducciones);
+  });
+
+  it('no muestra la tabla ni el total de No remunerativo cuando no hay ningún concepto de ese tipo', () => {
+    const html = generarHtmlRecibo(snapshotBase());
+    expect(html).not.toContain('Total no remunerativo');
+  });
+
+  it('no muestra una tabla fantasma con un total en $0 cuando una sección entera no tiene conceptos (ej. sin contribuciones patronales, revisión de fidelidad 2026-07-19)', () => {
+    const snapshot = snapshotBase({
+      conceptos: snapshotBase().conceptos.filter((c) => c.tipo !== 'contribucion_patronal'),
+      totales: {
+        totalBruto: 1000,
+        totalDeducciones: 110,
+        totalContribucionesPatronales: 0,
+        neto: 890,
+        costoLaboralTotal: 1000,
+      },
+    });
+
+    const html = generarHtmlRecibo(snapshot);
+
+    expect(html).not.toContain('Total contribuciones patronales');
+  });
+
   it('omite por completo el campo (sin reservar espacio) cuando falta la categoría, la fecha de ingreso, el legajo o el banco', () => {
     const snapshot = snapshotBase({
       empleado: { ...snapshotBase().empleado, categoria: null, fechaIngreso: null, legajo: null, banco: null },

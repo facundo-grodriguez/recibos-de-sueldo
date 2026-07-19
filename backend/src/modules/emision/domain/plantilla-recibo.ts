@@ -92,10 +92,17 @@ function colgroupTabla(mostrarCalculo: boolean): string {
  * Recibe el HTML de las filas ya construido — nunca vuelve a recorrer los
  * conceptos — para no arriesgar que una sección se renderice dos veces.
  */
+// Sin filas no hay tabla: antes se seguía mostrando el renglón de total
+// (ej. "Total contribuciones patronales $ 0,00") sin encabezado ni datos —
+// una tabla fantasma con un total sin sentido, cuando el origen de datos
+// simplemente no trajo conceptos de ese tipo para este empleado (hallazgo
+// real de la revisión de fidelidad 2026-07-19, con un empleado real sin
+// contribuciones patronales en el archivo de origen).
 function envolverTabla(filasHtml: string, filaTotal: string, mostrarCalculo: boolean): string {
+  if (!filasHtml) return '';
   return `<table class="tabla-conceptos">
     ${colgroupTabla(mostrarCalculo)}
-    ${filasHtml ? encabezadoTabla(mostrarCalculo) : ''}
+    ${encabezadoTabla(mostrarCalculo)}
     <tbody>${filasHtml}${filaTotal}</tbody>
   </table>`;
 }
@@ -126,7 +133,15 @@ export function generarHtmlRecibo(snapshot: ReciboSnapshot): string {
   const { empresa, empleado, periodo, conceptos, totales, segmentosCostoLaboral, detalleComposicionSalarial } =
     snapshot;
 
-  const remunerativos = conceptos.filter((c) => c.tipo === 'remunerativo' || c.tipo === 'no_remunerativo');
+  // El Excel oficial trae Remunerativo y No remunerativo como dos tablas
+  // separadas dentro de "Remuneración bruta y deducciones" (sección 4 de
+  // docs/modelo-funcional-anexo-iii.md) — nunca mezcladas en una sola,
+  // aunque ambas sumen al mismo "Sueldo bruto". Hallazgo real de la
+  // revisión de fidelidad 2026-07-19: un concepto no remunerativo real
+  // (ej. "Incremento No Remunerativo") quedaba indistinguible de uno
+  // remunerativo en la tabla combinada.
+  const remunerativosPuros = conceptos.filter((c) => c.tipo === 'remunerativo');
+  const noRemunerativos = conceptos.filter((c) => c.tipo === 'no_remunerativo');
   const deducciones = conceptos.filter((c) => c.tipo === 'deduccion');
   const contribuciones = conceptos.filter((c) => c.tipo === 'contribucion_patronal');
   const mostrarCalculo = conceptos.some((c) => c.unidad !== null || c.base !== null);
@@ -156,13 +171,14 @@ export function generarHtmlRecibo(snapshot: ReciboSnapshot): string {
 
   const colspanTotal = mostrarCalculo ? 3 : 1;
   const totalContribuciones = `<tr class="total-row"><td colspan="${colspanTotal}">Total contribuciones patronales</td><td class="monto">${formatearMonto(totales.totalContribucionesPatronales)}</td></tr>`;
-  const totalBrutoFila = `<tr class="total-row"><td colspan="${colspanTotal}">Total remuneración bruta</td><td class="monto">${formatearMonto(totales.totalBruto)}</td></tr>`;
+  const totalRemunerativoFila = `<tr class="total-row"><td colspan="${colspanTotal}">Total remunerativo</td><td class="monto">${formatearMonto(remunerativosPuros.reduce((acc, c) => acc + c.monto, 0))}</td></tr>`;
+  const totalNoRemunerativoFila = `<tr class="total-row"><td colspan="${colspanTotal}">Total no remunerativo</td><td class="monto">${formatearMonto(noRemunerativos.reduce((acc, c) => acc + c.monto, 0))}</td></tr>`;
   const totalDeduccionesFila = `<tr class="total-row"><td colspan="${colspanTotal}">Total deducciones</td><td class="monto">${formatearMonto(totales.totalDeducciones)}</td></tr>`;
 
   const leyendaGrafico = segmentosCostoLaboral
     .map(
       (s) =>
-        `<li><span class="swatch" style="background:${s.color}"></span>${escaparHtml(s.etiqueta)}: ${formatearMonto(s.monto)} (${s.porcentaje.toFixed(1)}%)</li>`,
+        `<li><span class="swatch" style="background:${s.color}"></span>${escaparHtml(s.etiqueta)}: <span class="valor">${formatearMonto(s.monto)} (${s.porcentaje.toFixed(1)}%)</span></li>`,
     )
     .join('');
 
@@ -229,12 +245,17 @@ export function generarHtmlRecibo(snapshot: ReciboSnapshot): string {
   .detalle-item-total .monto { font-variant-numeric: tabular-nums; }
   .detalle-item-sub { display: flex; gap: 10px; color: #767568; }
 
-  /* El gráfico es un complemento informativo, no el protagonista: tamaño
-     acotado y proporción menor frente al detalle de composición (arriba). */
-  .grafico-container { flex: 1; max-width: 160px; display: flex; align-items: center; gap: 6px; }
+  /* El gráfico es un complemento informativo, no el protagonista: el SVG en
+     sí queda chico (52px) a propósito; el ancho del contenedor solo le da
+     más aire a la leyenda de texto, no agranda el gráfico. */
+  .grafico-container { flex: 1; max-width: 200px; display: flex; align-items: center; gap: 6px; }
   .grafico-container svg { width: 52px; height: 52px; flex-shrink: 0; }
   ul.leyenda { list-style: none; margin: 0; padding: 0; font-size: 8px; flex: 1; min-width: 0; }
   ul.leyenda li { margin-bottom: 2px; }
+  /* El monto y el porcentaje nunca se separan entre sí al hacer wrap — si
+     no entran junto a la etiqueta, bajan los dos juntos a la línea
+     siguiente en vez de partir "(0.4%)" solo, huérfano. */
+  ul.leyenda .valor { white-space: nowrap; }
   .swatch { display: inline-block; width: 8px; height: 8px; margin-right: 4px; border-radius: 2px; }
 
   .pie-firma { display: flex; justify-content: space-between; align-items: flex-end; margin-top: 8px; font-size: 9.5px; color: #52514e; }
@@ -269,7 +290,8 @@ export function generarHtmlRecibo(snapshot: ReciboSnapshot): string {
 
   <h2>Remuneración bruta y deducciones</h2>
   ${destacado('Sueldo bruto', totales.totalBruto)}
-  ${envolverTabla(remunerativos.map((c) => filaConcepto(c, mostrarCalculo)).join(''), totalBrutoFila, mostrarCalculo)}
+  ${envolverTabla(remunerativosPuros.map((c) => filaConcepto(c, mostrarCalculo)).join(''), totalRemunerativoFila, mostrarCalculo)}
+  ${envolverTabla(noRemunerativos.map((c) => filaConcepto(c, mostrarCalculo)).join(''), totalNoRemunerativoFila, mostrarCalculo)}
   ${envolverTabla(deducciones.map((c) => filaConcepto(c, mostrarCalculo)).join(''), totalDeduccionesFila, mostrarCalculo)}
 
   <h2>Remuneración neta</h2>

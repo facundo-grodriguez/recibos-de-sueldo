@@ -2,6 +2,18 @@
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/). Este proyecto aún no tiene versiones publicadas (pre-release).
 
+## [Unreleased] — Revisión de fidelidad del motor (Etapa 1 del plan de 9 etapas): 2 bugs reales corregidos
+
+Generando PDFs reales con combinaciones de datos nunca probadas juntas (concepto no remunerativo real, empleado sin ningún dato opcional de ficha, sin contribuciones patronales, caso más denso hasta ahora) aparecieron 2 bugs de fidelidad que ningún test anterior detectaba. Ver ADR-065 en `DECISIONS.md`.
+
+### Corregido
+- **Remunerativo y No remunerativo ya no se mezclan en una sola tabla.** El Excel oficial los trae como dos tablas separadas; ahora `plantilla-recibo.ts` también — cada una con su propio total, la de No remunerativo solo aparece si hay al menos un concepto de ese tipo.
+- **Ya no se muestra una tabla fantasma con un total en $0** cuando una sección entera no tiene conceptos (ej. un empleado real sin contribuciones patronales en el archivo de origen). `envolverTabla` ahora se omite a sí misma cuando no hay filas, en un solo lugar, en vez de repetir la condición en cada call-site.
+- Ajuste cosmético ya anotado como pendiente: la leyenda del gráfico de torta gana algo de ancho y el monto+porcentaje de cada ítem ya no se separan entre sí al hacer wrap.
+
+### Verificado
+`tsc`, lint y 214 tests en verde (4 tests nuevos). PDFs reales generados directo con `construirSnapshotRecibo` + `PuppeteerGeneradorPdf` para los 4 casos de arriba, revisados visualmente uno por uno.
+
 ## [Unreleased] — Auditoría completa de cambios de clasificación de un concepto del catálogo
 
 Cierra un hallazgo pendiente desde la revisión funcional del catálogo de conceptos. Ver ADR-064 en `DECISIONS.md`.
