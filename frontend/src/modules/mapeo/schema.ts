@@ -10,6 +10,7 @@ export const CATEGORIAS_CONTRIBUCION = [
   'art',
   'camaras_empresariales',
   'otros',
+  'ganancias',
 ] as const;
 
 export const ETIQUETAS_TIPO_CONCEPTO: Record<(typeof TIPOS_CONCEPTO)[number], string> = {
@@ -27,6 +28,7 @@ export const ETIQUETAS_CATEGORIA_CONTRIBUCION: Record<(typeof CATEGORIAS_CONTRIB
   art: 'ART',
   camaras_empresariales: 'Cámaras Empresariales',
   otros: 'Otros',
+  ganancias: 'Impuesto a las Ganancias',
 };
 
 export const definirMapeoSchema = z

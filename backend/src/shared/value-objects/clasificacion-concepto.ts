@@ -8,7 +8,14 @@ export const TIPOS_CONCEPTO = [
 ] as const;
 export type TipoConcepto = (typeof TIPOS_CONCEPTO)[number];
 
-// Las 7 categorías de contribución patronal exigidas por el Anexo III (Decreto 407/2026).
+// Las 7 categorías de contribución patronal exigidas por el Anexo III (Decreto
+// 407/2026), más 'ganancias' (Impuesto a las Ganancias — ADR-068): a
+// diferencia de las otras 7, nunca es una contribución patronal real (ningún
+// empleador aporta Ganancias), solo aplica como categoría opcional de una
+// deducción. Se agrega igual a esta única lista (en vez de crear una lista
+// aparte) porque `categoriaContribucion` ya es opcional y de uso libre para
+// deducción — no hace falta una segunda enumeración para un caso que el tipo
+// ya contempla.
 export const CATEGORIAS_CONTRIBUCION = [
   'sindical',
   'seguridad_social',
@@ -17,6 +24,7 @@ export const CATEGORIAS_CONTRIBUCION = [
   'art',
   'camaras_empresariales',
   'otros',
+  'ganancias',
 ] as const;
 export type CategoriaContribucion = (typeof CATEGORIAS_CONTRIBUCION)[number];
 

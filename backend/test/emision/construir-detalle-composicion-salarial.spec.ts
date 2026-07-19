@@ -58,6 +58,16 @@ describe('construirDetalleComposicionSalarial', () => {
     expect(detalle).toEqual([{ categoria: 'sindical', etiqueta: 'Sindical', empleador: 0, trabajador: 18000, total: 18000 }]);
   });
 
+  it('una deducción de "ganancias" (retención de Impuesto a las Ganancias) queda con empleador en 0', () => {
+    const filas = [fila({ id: 'f1', tipo: 'deduccion', categoriaContribucion: 'ganancias', monto: 45000 })];
+
+    const detalle = construirDetalleComposicionSalarial(filas);
+
+    expect(detalle).toEqual([
+      { categoria: 'ganancias', etiqueta: 'Impuesto a las Ganancias', empleador: 0, trabajador: 45000, total: 45000 },
+    ]);
+  });
+
   it('una categoría sin ningún monto no aparece en el resultado', () => {
     const filas = [fila({ id: 'f1', tipo: 'contribucion_patronal', categoriaContribucion: 'art', monto: 30000 })];
 

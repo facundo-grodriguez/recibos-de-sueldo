@@ -2,6 +2,20 @@
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/). Este proyecto aún no tiene versiones publicadas (pre-release).
 
+## [Unreleased] — Dos ajustes basados en evidencia de datasets reales (importación y categoría "Ganancias")
+
+Investigación técnica sin implementación (previa a este cambio) comparó el modelo de dominio contra 4 proyectos reales de GitHub de liquidación de sueldos argentina. De los hallazgos, 2 eran concretos y de bajo riesgo; el resto sigue diferido por falta de evidencia suficiente. Ver ADR-068 en `DECISIONS.md`.
+
+### Cambiado
+- **Importación acepta `monto = 0` y negativo**: antes se rechazaba cualquier monto `<= 0`. Hay conceptos reales así (un encabezado de sección liquidado en $0, o un par que se cancela entre sí) — el sistema nunca liquida ni juzga si un monto "tiene sentido" (ADR-005), solo que sea un número finito.
+- **Nueva categoría `'ganancias'`** (Impuesto a las Ganancias) en la lista de categorías de contribución/deducción: 3 de los 4 proyectos de referencia la modelan como una retención real y distinta, hoy caía en "Otros" sin poder distinguirse. Solo tiene sentido como categoría de una deducción (nunca de una contribución patronal). Color de paleta nuevo, validado con el script CVD de la skill de dataviz.
+
+### Verificado
+`tsc` y suite completa (backend 219 tests, frontend 24) sin regresiones. Contra Postgres real (`embedded-postgres`, sin Docker): importación con fila en $0 y fila negativa, concepto mapeado como deducción+"ganancias", recibo emitido y PDF descargado con el detalle de composición y el gráfico de torta mostrando el nuevo segmento correctamente. Datos de prueba borrados al terminar.
+
+### Pendiente (fuera de alcance de este cambio)
+Al revisar el detalle de composición salarial se confirmó un gap preexistente (no introducido acá): una deducción sin categoría queda excluida del gráfico de torta, que entonces suma menos que el costo laboral total. Documentado en `DECISIONS.md` ("Pendiente de decisión") para decidir en su propio ciclo.
+
 ## [Unreleased] — Primer `docker compose up --build` real: 1 bug más encontrado y corregido
 
 Con Docker ya instalado en la máquina, se corrió por primera vez el build real (la revisión anterior, ADR-066, había sido 100% estática). Ver ADR-067 en `DECISIONS.md`.

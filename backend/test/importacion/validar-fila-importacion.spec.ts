@@ -53,9 +53,18 @@ describe('validarFilaImportacion', () => {
     }
   });
 
-  it('rechaza un monto negativo o cero', () => {
-    expect(validarFilaImportacion(filaBase({ monto: '0' })).valida).toBe(false);
-    expect(validarFilaImportacion(filaBase({ monto: '-100' })).valida).toBe(false);
+  it('acepta un monto en cero o negativo (hay conceptos reales así: un encabezado de sección liquidado en $0, o un par que se cancela entre sí)', () => {
+    const resultadoCero = validarFilaImportacion(filaBase({ monto: '0' }));
+    expect(resultadoCero.valida).toBe(true);
+    if (resultadoCero.valida) {
+      expect(resultadoCero.datos.monto.toDecimal()).toBe(0);
+    }
+
+    const resultadoNegativo = validarFilaImportacion(filaBase({ monto: '-100' }));
+    expect(resultadoNegativo.valida).toBe(true);
+    if (resultadoNegativo.valida) {
+      expect(resultadoNegativo.datos.monto.toDecimal()).toBe(-100);
+    }
   });
 
   it('rechaza nombre, apellido o concepto vacíos', () => {

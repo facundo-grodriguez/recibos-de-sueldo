@@ -28,9 +28,15 @@ export type ResultadoValidacionFila =
 
 function parsearMonto(raw: string): Money {
   // Acepta tanto "1234.56" como "1234,56" (formato argentino habitual en Excel).
+  // Acepta 0 y negativos a propósito (investigación de datasets reales,
+  // 2026-07-19): hay conceptos reales en $0 (ej. un encabezado de sección que
+  // se liquida como fila con monto nulo) y pares que se cancelan entre sí
+  // (un concepto positivo y su contrapartida negativa). Nunca liquidamos
+  // (ADR-005), así que no nos corresponde juzgar si un monto real "tiene
+  // sentido" — solo que sea un número.
   const normalizado = raw.trim().replace(',', '.');
   const numero = Number(normalizado);
-  if (!Number.isFinite(numero) || numero <= 0) {
+  if (!Number.isFinite(numero)) {
     throw new DomainError(`Monto inválido: "${raw}"`);
   }
   return Money.fromDecimal(numero);

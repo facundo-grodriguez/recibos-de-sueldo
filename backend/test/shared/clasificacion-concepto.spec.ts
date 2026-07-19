@@ -42,6 +42,11 @@ describe('ClasificacionConcepto', () => {
     expect(clasificacion.categoriaContribucion).toBeNull();
   });
 
+  it('acepta una deducción con categoría "ganancias" (retención de Impuesto a las Ganancias, ADR-068)', () => {
+    const clasificacion = ClasificacionConcepto.create('deduccion', 'ganancias');
+    expect(clasificacion.categoriaContribucion).toBe('ganancias');
+  });
+
   it('rechaza una deducción con una categoría inválida', () => {
     expect(() => ClasificacionConcepto.create('deduccion', 'inventada')).toThrow(DomainError);
   });
