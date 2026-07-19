@@ -12,6 +12,19 @@ Antes de considerar cerrado el MVP se ejecutó una prueba funcional completa des
 ### Verificado
 Flujo completo confirmado end-to-end con datos reales del Anexo III (Jubilación, SIPA, OSECAC, ART+FFEP, Sindicato). Ver ADR-057 para el detalle y las dos limitaciones de robustez encontradas (emisión en lote no atómica, auditoría no atómica con la creación del recibo) que quedan pendientes de decisión, no corregidas en esta tarea.
 
+## [Unreleased] — Período trabajado: campos "Mes/Año" y "Período" separados
+
+El Excel oficial trae dos campos distintos donde el sistema solo mostraba uno (ver ADR-061 en `DECISIONS.md`).
+
+### Agregado
+- Campo "Mes/Año" en la ficha de identificación: texto completo (ej. "Junio 2026"), derivado del mes de la fecha de pago.
+
+### Cambiado
+- El campo "Período" pasa de mostrar texto completo (ej. "Julio 2026") a formato abreviado tipo Excel (ej. "jul-26"), igual que el oficial. Sigue derivado de `anio`/`mes` — ningún dato nuevo de entrada.
+
+### Verificado
+`tsc`, lint y 200 tests en verde. PDF real reproduciendo el caso del Excel oficial (recibo de junio, período mayo): "MES/AÑO: Junio 2026" / "PERÍODO: may-26", idéntico al ejemplo real.
+
 ## [Unreleased] — Fidelidad del recibo al Anexo III oficial: orden de la Firma, resumen redundante, regla de subtotales
 
 Tras la revisión funcional del recibo generado contra el Excel oficial, se implementaron 3 de los 4 hallazgos (ver ADR-060 en `DECISIONS.md`).

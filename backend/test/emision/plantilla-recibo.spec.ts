@@ -75,6 +75,16 @@ describe('generarHtmlRecibo', () => {
     expect(html).toContain('<svg');
   });
 
+  it('muestra "Mes/Año" (mes de la fecha de pago, texto completo) y "Período" (mes trabajado, abreviado tipo Excel) como dos campos distintos', () => {
+    const html = generarHtmlRecibo(snapshotBase());
+
+    // snapshotBase: fechaPago '2026-07-05' → Mes/Año "Julio 2026"; anio/mes 2026/7 (mes trabajado) → Período "jul-26".
+    expect(html).toContain('Mes/Año');
+    expect(html).toContain('Julio 2026');
+    expect(html).toContain('Período');
+    expect(html).toContain('jul-26');
+  });
+
   it('nunca antepone una numeración automática a los encabezados de sección', () => {
     const html = generarHtmlRecibo(snapshotBase());
     const encabezados = [...html.matchAll(/<h2>(.*?)<\/h2>/g)].map((m) => m[1]);

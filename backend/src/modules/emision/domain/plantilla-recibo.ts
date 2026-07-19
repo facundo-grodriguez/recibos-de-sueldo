@@ -22,6 +22,22 @@ function campo(etiqueta: string, valor: string | null): string {
   return `<div class="campo"><span class="etiqueta">${escaparHtml(etiqueta)}</span><span class="valor">${escaparHtml(valor)}</span></div>`;
 }
 
+/**
+ * El Excel oficial trae dos campos de fecha distintos en la ficha: "MES/AÑO"
+ * (texto completo, el mes del recibo/pago) y "Período" (el mes efectivamente
+ * trabajado, un mes antes, mostrado abreviado tipo Excel "mmm-aa" — ej.
+ * "may-26"). No son el mismo dato: "Mes/Año" surge del mes de la fecha de
+ * pago; "Período" ya es `Importacion.anio/mes` (revisión funcional 2026-07-19).
+ */
+function mesAnioDesdeFecha(fechaIso: string): string {
+  const [anio, mes] = fechaIso.split('-').map(Number);
+  return `${NOMBRES_MES[mes - 1]} ${anio}`;
+}
+
+function periodoAbreviado(anio: number, mes: number): string {
+  return `${NOMBRES_MES[mes - 1].slice(0, 3).toLowerCase()}-${String(anio).slice(-2)}`;
+}
+
 function destacado(etiqueta: string, monto: number, claseExtra = ''): string {
   return `<div class="destacado ${claseExtra}"><span class="etiqueta-destacado">${escaparHtml(etiqueta)}</span><span class="monto-destacado">${formatearMonto(monto)}</span></div>`;
 }
@@ -234,11 +250,12 @@ export function generarHtmlRecibo(snapshot: ReciboSnapshot): string {
 
   <h2>Identificación</h2>
   <div class="ficha">
-    ${campo('Período', `${NOMBRES_MES[periodo.mes - 1]} ${periodo.anio}`)}
+    ${campo('Mes/Año', mesAnioDesdeFecha(periodo.fechaPago))}
     ${campo('Legajo', empleado.legajo)}
     ${campo('Apellido y nombre', `${empleado.apellido}, ${empleado.nombre}`)}
     ${campo('C.U.I.L.', empleado.cuil)}
     ${campo('Banco', empleado.banco)}
+    ${campo('Período', periodoAbreviado(periodo.anio, periodo.mes))}
     ${campo('Categoría', empleado.categoria)}
     ${campo('Fecha de ingreso', empleado.fechaIngreso)}
     ${campo('Antigüedad', empleado.antiguedad)}
