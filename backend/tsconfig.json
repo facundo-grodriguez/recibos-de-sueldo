@@ -26,5 +26,8 @@
     "resolveJsonModule": true
   },
   "include": ["src/**/*.ts"],
-  "exclude": ["node_modules", "dist", "test"]
+  "exclude": ["node_modules", "dist", "test", "uploads"],
+  "watchOptions": {
+    "excludeDirectories": ["node_modules", "dist", "uploads"]
+  }
 }

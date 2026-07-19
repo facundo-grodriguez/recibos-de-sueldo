@@ -2,6 +2,16 @@
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/). Este proyecto aún no tiene versiones publicadas (pre-release).
 
+## [Unreleased] — Prueba funcional integral (E2E) del flujo completo antes de cerrar el MVP
+
+Antes de considerar cerrado el MVP se ejecutó una prueba funcional completa desde la interfaz web (Playwright real + backend real): registro, login, alta de empresa, importación de un archivo con un CUIL inválido real, corrección de esa fila sin re-subir el archivo, mapeo de 9 conceptos reales del Anexo III, confirmación, validación, edición de fichas de empleado (categoría/legajo/banco), emisión de recibos, descarga y verificación visual de los PDF, historial de recibos, anular + reemitir, auditoría, y navegación con los botones de volver de cada pantalla.
+
+### Corregido
+- `nest start --watch` reiniciaba el servidor completo cada vez que se escribía un PDF de recibo, porque `app/backend/uploads/` no estaba excluido del watcher de TypeScript. Esto cortó una emisión en lote real a mitad de camino (recibos parciales, `ERR_CONNECTION_REFUSED` en el navegador). Fix: `uploads` agregado a `exclude` y a `watchOptions.excludeDirectories` en `tsconfig.json`. Ver ADR-057.
+
+### Verificado
+Flujo completo confirmado end-to-end con datos reales del Anexo III (Jubilación, SIPA, OSECAC, ART+FFEP, Sindicato). Ver ADR-057 para el detalle y las dos limitaciones de robustez encontradas (emisión en lote no atómica, auditoría no atómica con la creación del recibo) que quedan pendientes de decisión, no corregidas en esta tarea.
+
 ## [Unreleased] — Modelo funcional del Anexo III aprobado; campo Banco y rediseño del gráfico de torta
 
 Tras la aprobación de `docs/modelo-funcional-anexo-iii.md` como especificación funcional base (ver ADR-055/056 en `DECISIONS.md`), se implementaron los dos hallazgos de ese análisis que requerían código.
