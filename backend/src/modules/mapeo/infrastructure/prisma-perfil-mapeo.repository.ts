@@ -47,4 +47,19 @@ export class PrismaPerfilMapeoRepository implements PerfilMapeoRepository {
     const registros = await this.prisma.perfilMapeoConcepto.findMany({ where: { empresaId } });
     return registros.map(aDominio);
   }
+
+  async findByEmpresaAndConceptoNormalizado(
+    empresaId: string,
+    conceptoNormalizado: string,
+  ): Promise<PerfilMapeoConcepto | null> {
+    const registro = await this.prisma.perfilMapeoConcepto.findUnique({
+      where: { empresaId_conceptoNormalizado: { empresaId, conceptoNormalizado } },
+    });
+    return registro ? aDominio(registro) : null;
+  }
+
+  async findByIdAndEmpresa(id: string, empresaId: string): Promise<PerfilMapeoConcepto | null> {
+    const registro = await this.prisma.perfilMapeoConcepto.findFirst({ where: { id, empresaId } });
+    return registro ? aDominio(registro) : null;
+  }
 }

@@ -131,6 +131,10 @@ class AuditLogRepositoryFake implements AuditLogRepository {
     this.entidadConsultada = { entidad, entidadId };
     return this.entradas;
   }
+
+  async create(): Promise<void> {
+    throw new Error('no usado en este test');
+  }
 }
 
 function snapshot(): ReciboSnapshot {

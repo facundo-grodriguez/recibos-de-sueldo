@@ -126,6 +126,14 @@ class PerfilMapeoRepositoryFake implements PerfilMapeoRepository {
   async findAllByEmpresa(empresaId: string): Promise<PerfilMapeoConcepto[]> {
     return this.entradas.filter((entrada) => entrada.empresaId === empresaId);
   }
+
+  async findByEmpresaAndConceptoNormalizado(): Promise<PerfilMapeoConcepto | null> {
+    throw new Error('no usado en este test');
+  }
+
+  async findByIdAndEmpresa(): Promise<PerfilMapeoConcepto | null> {
+    throw new Error('no usado en este test');
+  }
 }
 
 class ImportacionRepositoryFake implements ImportacionRepository {

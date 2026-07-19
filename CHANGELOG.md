@@ -2,6 +2,21 @@
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/). Este proyecto aún no tiene versiones publicadas (pre-release).
 
+## [Unreleased] — Auditoría completa de cambios de clasificación de un concepto del catálogo
+
+Cierra un hallazgo pendiente desde la revisión funcional del catálogo de conceptos. Ver ADR-064 en `DECISIONS.md`.
+
+### Agregado
+- `DefinirMapeoConceptoUseCase` ahora registra en `AuditLog` el diff completo al redefinir un concepto: `accion` (`crear`/`modificar`), `campo: 'clasificacion'`, `valorAnterior`/`valorNuevo` (tipo + categoría de contribución). No se registra nada si se reenvía exactamente la misma clasificación (sin cambio real).
+- Nuevo endpoint `GET /empresas/:id/conceptos-mapeados/:perfilMapeoId/auditoria` (mismo patrón que el ya existente para recibos).
+- `AuditLogRepository` gana un método de escritura (`create`), reemplazando el `@Auditable` genérico en este endpoint puntual (que solo sabía registrar "crear" sin el valor anterior, y hubiera duplicado el registro).
+
+### Verificado
+Backend: `tsc`, lint y 211 tests en verde. Contra Postgres real: crear un concepto queda con `valorAnterior: null`; redefinirlo queda como `modificar` con el valor anterior correcto; reenviar la misma clasificación no agrega una entrada nueva.
+
+### Pendiente
+No se construyó pantalla de frontend para consultar esta auditoría — no existe todavía una pantalla de catálogo de conceptos más allá del panel de "conceptos sin mapear"; agregarla es una tarea aparte.
+
 ## [Unreleased] — Prueba de carga real + pool acotado de emisión + paginación del historial
 
 Se ejecutó una prueba de carga real (20/100/300 empleados en una sola importación, contra la API y Postgres reales) para verificar las 4 optimizaciones de la entrada anterior bajo volumen — sin bugs funcionales, y con dos hallazgos reales resueltos en esta misma entrada. Ver ADR-063 en `DECISIONS.md`.
