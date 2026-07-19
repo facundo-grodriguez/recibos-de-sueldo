@@ -2,6 +2,16 @@
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/). Este proyecto aún no tiene versiones publicadas (pre-release).
 
+## [Unreleased] — Primer `docker compose up --build` real: 1 bug más encontrado y corregido
+
+Con Docker ya instalado en la máquina, se corrió por primera vez el build real (la revisión anterior, ADR-066, había sido 100% estática). Ver ADR-067 en `DECISIONS.md`.
+
+### Corregido
+- **Build del backend fallaba en Docker**: `node:22-slim` no trae `unzip`, y Puppeteer lo necesita para descomprimir el Chromium que descarga en `npm ci`. Corregido usando el Chromium del sistema operativo (`apt-get install chromium`, que resuelve automáticamente todas sus librerías compartidas) en vez de pelear con el archivador — `PUPPETEER_SKIP_DOWNLOAD` + `PUPPETEER_EXECUTABLE_PATH` le indican a Puppeteer que use ese Chromium.
+
+### Verificado
+`docker compose up --build` levantó los 3 servicios reales. Flujo completo end-to-end contra el backend dockerizado (registro → empresa → importar → mapear → confirmar → emitir → descargar PDF) funcionó de punta a punta. Se confirmó puntualmente el fix del volumen de `uploads/` (ADR-066): un recibo ya emitido se siguió descargando igual después de reiniciar el contenedor del backend.
+
 ## [Unreleased] — Estabilización (Etapa 2 del plan de 9 etapas): errores, recuperación ante fallos, Docker, backups
 
 QA completo, performance y auditoría ya estaban resueltos por trabajo previo (confirmado sin cambios). El resto encontró y corrigió hallazgos reales. Ver ADR-066 en `DECISIONS.md`.
