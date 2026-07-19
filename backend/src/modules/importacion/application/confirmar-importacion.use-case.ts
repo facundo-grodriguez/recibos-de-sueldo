@@ -43,21 +43,7 @@ export class ConfirmarImportacionUseCase {
       );
     }
 
-    for (const cuil of importacion.cuilsUnicosValidos()) {
-      const existente = await this.empleadoRepository.findByCuilAndEmpresa(empresa.id, cuil);
-      if (!existente) {
-        const filaEjemplo = importacion.filas.find((fila) => fila.cuil === cuil);
-        if (!filaEjemplo) {
-          continue;
-        }
-        await this.empleadoRepository.create({
-          empresaId: empresa.id,
-          nombre: filaEjemplo.nombre,
-          apellido: filaEjemplo.apellido,
-          cuil,
-        });
-      }
-    }
+    await this.crearEmpleadosFaltantes(empresa.id, importacion);
 
     // Mapeo automático (Fase 2): los conceptos que la empresa ya mapeó antes
     // se clasifican solos; los que nunca vio quedan sin clasificar, visibles
@@ -67,23 +53,58 @@ export class ConfirmarImportacionUseCase {
     return this.importacionRepository.marcarConfirmada(importacion.id);
   }
 
+  /**
+   * Alta en lote de los empleados nuevos del archivo: una consulta para ver
+   * cuáles ya existen + una única alta en lote para el resto — reemplaza el
+   * patrón anterior de un `findByCuilAndEmpresa` + `create` por CUIL adentro
+   * de un `for` (perfil de rendimiento, 2026-07-19: hasta 2 round-trips por
+   * empleado, secuenciales).
+   */
+  private async crearEmpleadosFaltantes(empresaId: string, importacion: Importacion): Promise<void> {
+    const cuils = importacion.cuilsUnicosValidos();
+    if (cuils.length === 0) {
+      return;
+    }
+
+    const existentes = await this.empleadoRepository.findAllByCuilsAndEmpresa(empresaId, cuils);
+    const cuilsExistentes = new Set(existentes.map((empleado) => empleado.cuil.value));
+
+    const datosNuevos = cuils
+      .filter((cuil) => !cuilsExistentes.has(cuil))
+      .map((cuil) => importacion.filas.find((fila) => fila.cuil === cuil))
+      .filter((fila): fila is NonNullable<typeof fila> => fila !== undefined)
+      .map((fila) => ({ empresaId, nombre: fila.nombre, apellido: fila.apellido, cuil: fila.cuil }));
+
+    await this.empleadoRepository.crearVarios(datosNuevos);
+  }
+
   private async autoclasificar(empresaId: string, importacion: Importacion): Promise<void> {
     const conceptosSinClasificar = importacion.conceptosNormalizadosSinClasificar();
     if (conceptosSinClasificar.length === 0) {
       return;
     }
 
-    const perfiles = await this.perfilMapeoRepository.findAllByEmpresa(empresaId);
+    // Una sola consulta que trae TODAS las filas sin clasificar de la
+    // empresa, en vez de que `aplicarClasificacion` la repita una vez por
+    // cada concepto (perfil de rendimiento, 2026-07-19).
+    const [perfiles, idsPorConcepto] = await Promise.all([
+      this.perfilMapeoRepository.findAllByEmpresa(empresaId),
+      this.importacionRepository.agruparFilasSinClasificarPorConcepto(empresaId),
+    ]);
     const perfilPorConcepto = new Map(perfiles.map((perfil) => [perfil.conceptoNormalizado(), perfil]));
 
-    for (const conceptoNormalizado of conceptosSinClasificar) {
-      const perfil = perfilPorConcepto.get(conceptoNormalizado);
-      if (perfil) {
-        await this.importacionRepository.aplicarClasificacion(empresaId, conceptoNormalizado, {
+    await Promise.all(
+      conceptosSinClasificar.map((conceptoNormalizado) => {
+        const perfil = perfilPorConcepto.get(conceptoNormalizado);
+        const ids = idsPorConcepto.get(conceptoNormalizado);
+        if (!perfil || !ids) {
+          return Promise.resolve();
+        }
+        return this.importacionRepository.actualizarClasificacionPorIds(ids, {
           tipo: perfil.clasificacion.tipo,
           categoriaContribucion: perfil.clasificacion.categoriaContribucion,
         });
-      }
-    }
+      }),
+    );
   }
 }

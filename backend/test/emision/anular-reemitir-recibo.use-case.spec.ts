@@ -83,6 +83,14 @@ class ImportacionRepositoryFake implements ImportacionRepository {
     throw new Error('no usado en este test');
   }
 
+  async agruparFilasSinClasificarPorConcepto(): Promise<Map<string, string[]>> {
+    throw new Error('no usado en este test');
+  }
+
+  async actualizarClasificacionPorIds(): Promise<number> {
+    throw new Error('no usado en este test');
+  }
+
   async findConfirmadasAnteriores(): Promise<Importacion[]> {
     return [];
   }
@@ -99,12 +107,20 @@ class EmpleadoRepositoryFake implements EmpleadoRepository {
     throw new Error('no usado en este test');
   }
 
+  async crearVarios(): Promise<void> {
+    throw new Error('no usado en este test');
+  }
+
   async findAllByEmpresa(): Promise<Empleado[]> {
     throw new Error('no usado en este test');
   }
 
   async findByCuilAndEmpresa(empresaId: string, cuil: string): Promise<Empleado | null> {
     return this.empleados.find((e) => e.empresaId === empresaId && e.cuil.value === cuil) ?? null;
+  }
+
+  async findAllByCuilsAndEmpresa(empresaId: string, cuils: string[]): Promise<Empleado[]> {
+    return this.empleados.filter((e) => e.empresaId === empresaId && cuils.includes(e.cuil.value));
   }
 
   async findByIdAndEmpresa(id: string, empresaId: string): Promise<Empleado | null> {

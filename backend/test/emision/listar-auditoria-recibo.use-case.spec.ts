@@ -69,6 +69,14 @@ class ImportacionRepositoryFake implements ImportacionRepository {
     throw new Error('no usado en este test');
   }
 
+  async agruparFilasSinClasificarPorConcepto(): Promise<Map<string, string[]>> {
+    throw new Error('no usado en este test');
+  }
+
+  async actualizarClasificacionPorIds(): Promise<number> {
+    throw new Error('no usado en este test');
+  }
+
   async findConfirmadasAnteriores(): Promise<Importacion[]> {
     throw new Error('no usado en este test');
   }

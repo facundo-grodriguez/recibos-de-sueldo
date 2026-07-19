@@ -23,6 +23,21 @@ export class PrismaEmpleadoRepository implements EmpleadoRepository {
     return Empleado.create(registro);
   }
 
+  async crearVarios(datos: CrearEmpleadoData[]): Promise<void> {
+    if (datos.length === 0) {
+      return;
+    }
+    await this.prisma.empleado.createMany({
+      data: datos.map((dato) => ({
+        empresaId: dato.empresaId,
+        nombre: dato.nombre,
+        apellido: dato.apellido,
+        cuil: dato.cuil,
+      })),
+      skipDuplicates: true,
+    });
+  }
+
   async findAllByEmpresa(empresaId: string): Promise<Empleado[]> {
     const registros = await this.prisma.empleado.findMany({ where: { empresaId } });
     return registros.map((registro) => Empleado.create(registro));
@@ -31,6 +46,14 @@ export class PrismaEmpleadoRepository implements EmpleadoRepository {
   async findByCuilAndEmpresa(empresaId: string, cuil: string): Promise<Empleado | null> {
     const registro = await this.prisma.empleado.findFirst({ where: { empresaId, cuil } });
     return registro ? Empleado.create(registro) : null;
+  }
+
+  async findAllByCuilsAndEmpresa(empresaId: string, cuils: string[]): Promise<Empleado[]> {
+    if (cuils.length === 0) {
+      return [];
+    }
+    const registros = await this.prisma.empleado.findMany({ where: { empresaId, cuil: { in: cuils } } });
+    return registros.map((registro) => Empleado.create(registro));
   }
 
   async findByIdAndEmpresa(id: string, empresaId: string): Promise<Empleado | null> {

@@ -39,11 +39,19 @@ class EmpleadoRepositoryFake implements EmpleadoRepository {
     throw new Error('no usado en este test');
   }
 
+  async crearVarios(): Promise<void> {
+    throw new Error('no usado en este test');
+  }
+
   async findAllByEmpresa(): Promise<Empleado[]> {
     throw new Error('no usado en este test');
   }
 
   async findByCuilAndEmpresa(): Promise<Empleado | null> {
+    throw new Error('no usado en este test');
+  }
+
+  async findAllByCuilsAndEmpresa(): Promise<Empleado[]> {
     throw new Error('no usado en este test');
   }
 

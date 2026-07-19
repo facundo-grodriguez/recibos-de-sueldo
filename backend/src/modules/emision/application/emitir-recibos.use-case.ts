@@ -79,8 +79,20 @@ export class EmitirRecibosUseCase {
     const ahora = new Date();
     const recibosCreados: Recibo[] = [];
 
-    for (const [cuil, filas] of importacion.agruparFilasPorCuilValido()) {
-      const empleado = await this.empleadoRepository.findByCuilAndEmpresa(empresa.id, cuil);
+    const filasPorCuil = importacion.agruparFilasPorCuilValido();
+    // Una sola consulta para todos los empleados del lote, en vez de un
+    // `findByCuilAndEmpresa` por empleado adentro del `for` (perfil de
+    // rendimiento, 2026-07-19) — el render del PDF sigue siendo secuencial
+    // a propósito, ver informe de rendimiento (no se paraleliza sin evidencia
+    // real de que haga falta).
+    const empleadosPorCuil = new Map(
+      (await this.empleadoRepository.findAllByCuilsAndEmpresa(empresa.id, [...filasPorCuil.keys()])).map(
+        (empleado) => [empleado.cuil.value, empleado],
+      ),
+    );
+
+    for (const [cuil, filas] of filasPorCuil) {
+      const empleado = empleadosPorCuil.get(cuil);
       if (!empleado || empleado.estado === 'inactivo') {
         continue;
       }

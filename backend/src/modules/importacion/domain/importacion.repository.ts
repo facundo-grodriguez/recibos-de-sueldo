@@ -73,10 +73,24 @@ export interface ImportacionRepository {
   /** Conceptos (texto original) de filas válidas todavía sin clasificar, para esa empresa. */
   listarConceptosPendientes(empresaId: string): Promise<string[]>;
   /**
+   * Todas las filas válidas y sin clasificar de la empresa, agrupadas por
+   * concepto normalizado (ids de fila por grupo) — una única consulta.
+   * Reemplaza, para el caso de clasificar varios conceptos de una sola vez
+   * (ver `ConfirmarImportacionUseCase`), el patrón de llamar
+   * `aplicarClasificacion` (que escanea TODA la empresa) una vez por cada
+   * concepto — perfil de rendimiento, 2026-07-19.
+   */
+  agruparFilasSinClasificarPorConcepto(empresaId: string): Promise<Map<string, string[]>>;
+  /** Aplica una clasificación a filas ya identificadas por id, sin volver a escanear la empresa. */
+  actualizarClasificacionPorIds(ids: string[], clasificacion: AplicarClasificacionData): Promise<number>;
+  /**
    * Importaciones ya confirmadas de la empresa, con período (año/mes)
    * estrictamente anterior al indicado, ordenadas de la más reciente a la
    * más vieja. Se usa para comparar el neto de un empleado contra su
-   * período anterior (Fase 3: Validación).
+   * período anterior (Fase 3: Validación). Acotado a un puñado de períodos
+   * recientes (ver implementación) — nunca trae todo el historial confirmado
+   * de la empresa, solo lo necesario para encontrar el primer período donde
+   * el empleado ya esté clasificado.
    */
   findConfirmadasAnteriores(empresaId: string, anio: number, mes: number): Promise<Importacion[]>;
 }

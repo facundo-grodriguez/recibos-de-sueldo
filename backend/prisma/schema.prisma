@@ -100,6 +100,10 @@ model Importacion {
   recibos Recibo[]
 
   @@index([empresaId])
+  // Sostiene findConfirmadasAnteriores (empresaId + estado + anio/mes,
+  // perfil de rendimiento 2026-07-19) sin tener que escanear todas las
+  // importaciones de la empresa para descartar las no confirmadas.
+  @@index([empresaId, estado, anio, mes])
   @@map("importaciones")
 }
 

@@ -2,6 +2,23 @@
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/). Este proyecto aún no tiene versiones publicadas (pre-release).
 
+## [Unreleased] — Limpieza del entorno de pruebas + 4 optimizaciones de N+1/queries sin límite
+
+Antes de seguir agregando funcionalidad, se pidió un perfil de rendimiento (medir, no optimizar a ciegas) pensando en miles de empleados, y una limpieza completa del entorno (todo lo que había era dato de prueba). Ver ADR-062 en `DECISIONS.md`.
+
+### Cambiado
+- `findConfirmadasAnteriores` (repositorio de Importación) acotado a las últimas 3 importaciones confirmadas de la empresa (antes traía todo el historial completo, con todas sus filas) — nuevo índice compuesto `(empresaId, estado, anio, mes)`.
+- Creación de empleados al confirmar una importación: de un `create` por CUIL nuevo dentro de un loop, a una búsqueda batch + `createMany({ skipDuplicates: true })`.
+- Auto-clasificación de conceptos al confirmar: de un barrido completo de la empresa por cada concepto del catálogo, a una única lectura agrupada por concepto + un `updateMany` acotado por lista de ids por concepto.
+- Búsqueda de empleado al emitir recibos: de un `findByCuilAndEmpresa` por fila dentro del loop, a una única búsqueda batch antes de emitir.
+- **Explícitamente no tocado**: generación de PDF (Puppeteer, sigue secuencial — sin evidencia real de volumen que justifique paralelizarla) y ningún cálculo de negocio del Anexo III (sigue fuera de la base de datos, ADR-005).
+
+### Verificado
+`tsc -p tsconfig.eslint.json --noEmit`, lint y el suite completo de tests en verde (fakes de test actualizados en los módulos de empleados/importación/emisión/validación/mapeo). Además, verificado con datos reales contra Postgres (script puntual, creado y eliminado en esta misma tarea): los 4 métodos nuevos producen exactamente el resultado esperado (sin duplicar empleados, agrupación por concepto normalizado correcta, actualización acotada a los ids esperados).
+
+### Operacional
+Entorno de pruebas reiniciado por completo: las 8 tablas con datos de prueba vaciadas (`TRUNCATE ... RESTART IDENTITY CASCADE`), PDFs de `uploads/recibos/` y artefactos de `.playwright-mcp/` eliminados. Ninguno de los datos borrados era real. Estrategia de nombres para futuras corridas de prueba (ej. "Empresa Demo A", "Empresa QA Julio") acordada para no repetir nombres entre pruebas, pendiente de aplicarse en el próximo escenario nuevo.
+
 ## [Unreleased] — Prueba funcional integral (E2E) del flujo completo antes de cerrar el MVP
 
 Antes de considerar cerrado el MVP se ejecutó una prueba funcional completa desde la interfaz web (Playwright real + backend real): registro, login, alta de empresa, importación de un archivo con un CUIL inválido real, corrección de esa fila sin re-subir el archivo, mapeo de 9 conceptos reales del Anexo III, confirmación, validación, edición de fichas de empleado (categoría/legajo/banco), emisión de recibos, descarga y verificación visual de los PDF, historial de recibos, anular + reemitir, auditoría, y navegación con los botones de volver de cada pantalla.

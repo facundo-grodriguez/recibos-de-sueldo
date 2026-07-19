@@ -15,6 +15,10 @@ import {
 
 type RegistroConFilas = ImportacionRegistro & { filas: ImportacionFilaRegistro[] };
 
+// Ver comentario en `findConfirmadasAnteriores`: cuántos períodos anteriores
+// como máximo se traen para buscar el neto de comparación de un empleado.
+const LIMITE_PERIODOS_ANTERIORES = 3;
+
 function aDominio(registro: RegistroConFilas): Importacion {
   return Importacion.create({
     id: registro.id,
@@ -184,6 +188,36 @@ export class PrismaImportacionRepository implements ImportacionRepository {
     return resultado.count;
   }
 
+  async agruparFilasSinClasificarPorConcepto(empresaId: string): Promise<Map<string, string[]>> {
+    const filas = await this.prisma.importacionFila.findMany({
+      where: { valida: true, tipo: null, importacion: { empresaId } },
+      select: { id: true, concepto: true },
+    });
+
+    const idsPorConcepto = new Map<string, string[]>();
+    for (const fila of filas) {
+      const clave = normalizarConcepto(fila.concepto);
+      const ids = idsPorConcepto.get(clave) ?? [];
+      ids.push(fila.id);
+      idsPorConcepto.set(clave, ids);
+    }
+    return idsPorConcepto;
+  }
+
+  async actualizarClasificacionPorIds(ids: string[], clasificacion: AplicarClasificacionData): Promise<number> {
+    if (ids.length === 0) {
+      return 0;
+    }
+    const resultado = await this.prisma.importacionFila.updateMany({
+      where: { id: { in: ids } },
+      data: {
+        tipo: clasificacion.tipo,
+        categoriaContribucion: clasificacion.categoriaContribucion,
+      },
+    });
+    return resultado.count;
+  }
+
   async listarConceptosPendientes(empresaId: string): Promise<string[]> {
     const filas = await this.prisma.importacionFila.findMany({
       where: { valida: true, tipo: null, importacion: { empresaId } },
@@ -209,6 +243,16 @@ export class PrismaImportacionRepository implements ImportacionRepository {
         OR: [{ anio: { lt: anio } }, { anio, mes: { lt: mes } }],
       },
       orderBy: [{ anio: 'desc' }, { mes: 'desc' }],
+      // `ValidarImportacionUseCase.buscarNetoAnterior` solo usa la PRIMERA
+      // importación anterior (la más reciente) donde el empleado esté 100%
+      // clasificado, y se detiene ahí — sin este límite, esta query traía
+      // TODO el historial confirmado de la empresa (con todas sus filas) en
+      // cada validación, un costo que crece sin fin con la antigüedad de la
+      // empresa, no con el tamaño del lote actual (perfil de rendimiento,
+      // 2026-07-19). `LIMITE_PERIODOS_ANTERIORES` da margen para el caso en
+      // que el período inmediato anterior tenga algún concepto sin
+      // clasificar todavía, sin volver a traer toda la historia.
+      take: LIMITE_PERIODOS_ANTERIORES,
       include: { filas: true },
     });
 

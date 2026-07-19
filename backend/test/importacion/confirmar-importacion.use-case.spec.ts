@@ -68,12 +68,25 @@ class EmpleadoRepositoryFake implements EmpleadoRepository {
     return empleado;
   }
 
+  async crearVarios(datos: CrearEmpleadoData[]): Promise<void> {
+    for (const dato of datos) {
+      const yaExiste = this.empleados.some((e) => e.empresaId === dato.empresaId && e.cuil.value === dato.cuil);
+      if (!yaExiste) {
+        await this.create(dato);
+      }
+    }
+  }
+
   async findAllByEmpresa(): Promise<Empleado[]> {
     throw new Error('no usado en este test');
   }
 
   async findByCuilAndEmpresa(empresaId: string, cuil: string): Promise<Empleado | null> {
     return this.empleados.find((e) => e.empresaId === empresaId && e.cuil.value === cuil) ?? null;
+  }
+
+  async findAllByCuilsAndEmpresa(empresaId: string, cuils: string[]): Promise<Empleado[]> {
+    return this.empleados.filter((e) => e.empresaId === empresaId && cuils.includes(e.cuil.value));
   }
 
   async findByIdAndEmpresa(): Promise<Empleado | null> {
@@ -185,6 +198,49 @@ class ImportacionRepositoryFake implements ImportacionRepository {
 
   async listarConceptosPendientes(): Promise<string[]> {
     throw new Error('no usado en este test');
+  }
+
+  async agruparFilasSinClasificarPorConcepto(empresaId: string): Promise<Map<string, string[]>> {
+    if (!this.guardada || this.guardada.empresaId !== empresaId) {
+      return new Map();
+    }
+    const idsPorConcepto = new Map<string, string[]>();
+    for (const fila of this.guardada.filas) {
+      if (!fila.valida || fila.estaClasificada()) continue;
+      const clave = normalizarConcepto(fila.concepto);
+      const ids = idsPorConcepto.get(clave) ?? [];
+      ids.push(fila.id);
+      idsPorConcepto.set(clave, ids);
+    }
+    return idsPorConcepto;
+  }
+
+  async actualizarClasificacionPorIds(ids: string[], clasificacion: AplicarClasificacionData): Promise<number> {
+    if (!this.guardada) {
+      return 0;
+    }
+    let actualizadas = 0;
+    const filas = this.guardada.filas.map((fila) => {
+      if (ids.includes(fila.id)) {
+        actualizadas += 1;
+        return ImportacionFila.create({
+          id: fila.id,
+          numeroFila: fila.numeroFila,
+          cuil: fila.cuil,
+          nombre: fila.nombre,
+          apellido: fila.apellido,
+          concepto: fila.concepto,
+          montoOriginal: fila.montoOriginal,
+          monto: fila.monto,
+          valida: fila.valida,
+          errorMensaje: fila.errorMensaje,
+          clasificacion: ClasificacionConcepto.create(clasificacion.tipo, clasificacion.categoriaContribucion),
+        });
+      }
+      return fila;
+    });
+    this.guardada = Importacion.create({ ...this.guardada, filas });
+    return actualizadas;
   }
 
   async findConfirmadasAnteriores(): Promise<Importacion[]> {
