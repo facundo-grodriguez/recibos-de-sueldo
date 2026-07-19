@@ -49,6 +49,27 @@ export class PrismaReciboRepository implements ReciboRepository {
     return aDominio(registro);
   }
 
+  async crearConAuditoria(data: CrearReciboData, usuarioId: string | null): Promise<Recibo> {
+    const registro = await this.prisma.$transaction(async (tx) => {
+      const creado = await tx.recibo.create({
+        data: {
+          importacionId: data.importacionId,
+          empleadoId: data.empleadoId,
+          numero: data.numero,
+          snapshot: data.snapshot as unknown as Prisma.InputJsonValue,
+          pdfPath: data.pdfPath,
+          hashIntegridad: data.hashIntegridad,
+          reemplazaAId: data.reemplazaAId,
+        },
+      });
+      await tx.auditLog.create({
+        data: { entidad: 'Recibo', entidadId: creado.id, accion: 'emitir', usuarioId },
+      });
+      return creado;
+    });
+    return aDominio(registro);
+  }
+
   async findAllByImportacion(importacionId: string): Promise<Recibo[]> {
     const registros = await this.prisma.recibo.findMany({
       where: { importacionId },

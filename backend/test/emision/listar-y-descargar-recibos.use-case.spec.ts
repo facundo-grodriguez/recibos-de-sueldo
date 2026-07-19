@@ -100,6 +100,10 @@ class ReciboRepositoryFake implements ReciboRepository {
     throw new Error('no usado en este test');
   }
 
+  async crearConAuditoria(): Promise<Recibo> {
+    throw new Error('no usado en este test');
+  }
+
   async findAllByImportacion(importacionId: string): Promise<Recibo[]> {
     return this.recibos.filter((r) => r.importacionId === importacionId);
   }

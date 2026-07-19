@@ -11,6 +11,7 @@ import { ConfigModule } from './infra/config/config.module';
 import { PrismaModule } from './infra/db/prisma.module';
 import { AuditInterceptor } from './infra/auditoria/audit.interceptor';
 import { DomainExceptionFilter } from './infra/errors/domain-exception.filter';
+import { PrismaExceptionFilter } from './infra/errors/prisma-exception.filter';
 import { HealthModule } from './infra/health/health.module';
 
 @Module({
@@ -29,6 +30,7 @@ import { HealthModule } from './infra/health/health.module';
   providers: [
     { provide: APP_INTERCEPTOR, useClass: AuditInterceptor },
     { provide: APP_FILTER, useClass: DomainExceptionFilter },
+    { provide: APP_FILTER, useClass: PrismaExceptionFilter },
   ],
 })
 export class AppModule {}

@@ -37,6 +37,7 @@ interface ContextoEmision {
   mes: number;
   datosEmision: { fechaPago: Date; lugarPago: string; fechaPagoCargasSociales: Date; lugarPagoCargasSociales: string };
   fechaReferencia: Date;
+  usuarioId: string;
 }
 
 export interface EmitirRecibosInput {
@@ -78,10 +79,16 @@ export class EmitirRecibosUseCase {
       );
     }
 
+    // El guard es por-empleado, no por-importación: si un lote se corta a
+    // mitad de camino (crash, reinicio, caída de red), los recibos ya
+    // creados quedan vigentes y volver a llamar a este mismo endpoint
+    // completa únicamente los empleados que faltan, en vez de rechazar todo
+    // el reintento (ADR-057 dejaba esto como límite conocido sin resolver;
+    // ver ADR-066). Se cuenta cualquier recibo existente (vigente o
+    // anulado): la reemisión de un anulado es responsabilidad explícita de
+    // `ReemitirReciboUseCase`, no de este flujo de emisión inicial.
     const recibosExistentes = await this.reciboRepository.findAllByImportacion(importacion.id);
-    if (recibosExistentes.length > 0) {
-      throw new DomainError('Ya se emitieron recibos para esta importación');
-    }
+    const empleadosYaEmitidos = new Set(recibosExistentes.map((r) => r.empleadoId));
 
     const resultadoValidacion = await this.validarImportacion.execute({
       importacionId: importacion.id,
@@ -120,10 +127,14 @@ export class EmitirRecibosUseCase {
     const itemsAEmitir: ItemAEmitir[] = [];
     for (const [cuil, filas] of filasPorCuil) {
       const empleado = empleadosPorCuil.get(cuil);
-      if (!empleado || empleado.estado === 'inactivo') {
+      if (!empleado || empleado.estado === 'inactivo' || empleadosYaEmitidos.has(empleado.id)) {
         continue;
       }
       itemsAEmitir.push({ empleado, filas, numero: numeroInicial + itemsAEmitir.length });
+    }
+
+    if (itemsAEmitir.length === 0 && recibosExistentes.length > 0) {
+      throw new DomainError('Ya se emitieron recibos para todos los empleados de esta importación');
     }
 
     const contexto: ContextoEmision = {
@@ -133,6 +144,7 @@ export class EmitirRecibosUseCase {
       mes: importacion.mes,
       datosEmision,
       fechaReferencia: ahora,
+      usuarioId: input.usuarioId,
     };
 
     return ejecutarConLimite(itemsAEmitir, CONCURRENCIA_EMISION_PDF, (item) => this.emitirUnRecibo(contexto, item));
@@ -173,13 +185,20 @@ export class EmitirRecibosUseCase {
       contenido: pdf,
     });
 
-    return this.reciboRepository.create({
-      importacionId: contexto.importacionId,
-      empleadoId: empleado.id,
-      numero,
-      snapshot,
-      pdfPath,
-      hashIntegridad,
-    });
+    // El recibo y su entrada de auditoría "emitir" se escriben en la misma
+    // transacción (ver ADR-066): sin esto, un corte justo entre ambas
+    // escrituras podía dejar un recibo vigente sin ningún rastro de
+    // auditoría de su emisión.
+    return this.reciboRepository.crearConAuditoria(
+      {
+        importacionId: contexto.importacionId,
+        empleadoId: empleado.id,
+        numero,
+        snapshot,
+        pdfPath,
+        hashIntegridad,
+      },
+      contexto.usuarioId,
+    );
   }
 }

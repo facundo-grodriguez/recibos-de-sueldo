@@ -93,6 +93,10 @@ class ReciboRepositoryFake implements ReciboRepository {
     throw new Error('no usado en este test');
   }
 
+  async crearConAuditoria(): Promise<Recibo> {
+    throw new Error('no usado en este test');
+  }
+
   async findAllByImportacion(): Promise<Recibo[]> {
     throw new Error('no usado en este test');
   }

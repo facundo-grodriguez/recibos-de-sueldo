@@ -30,6 +30,15 @@ export interface ReciboHistorialPagina {
 
 export interface ReciboRepository {
   create(data: CrearReciboData): Promise<Recibo>;
+  /**
+   * Igual que `create`, pero además registra la entrada de auditoría
+   * "emitir" en la misma transacción de base de datos — el recibo nunca
+   * queda persistido sin su rastro de auditoría, ni al revés (ver ADR-066).
+   * `usuarioId` puede ser `null` si el contexto de ejecución no tiene un
+   * usuario autenticado disponible (no debería pasar en la práctica, pero
+   * `AuditLog.usuarioId` ya es nullable).
+   */
+  crearConAuditoria(data: CrearReciboData, usuarioId: string | null): Promise<Recibo>;
   /** Todos los recibos de la importación, vigentes y anulados. */
   findAllByImportacion(importacionId: string): Promise<Recibo[]>;
   /** Solo los recibos vigentes de la importación (vista por defecto). */

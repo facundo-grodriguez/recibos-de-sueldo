@@ -142,6 +142,7 @@ class EmpleadoRepositoryFake implements EmpleadoRepository {
 
 class ReciboRepositoryFake implements ReciboRepository {
   recibos: Recibo[] = [];
+  usuariosAuditados: (string | null)[] = [];
 
   async create(data: CrearReciboData): Promise<Recibo> {
     const recibo = Recibo.create({
@@ -156,6 +157,11 @@ class ReciboRepositoryFake implements ReciboRepository {
     });
     this.recibos.push(recibo);
     return recibo;
+  }
+
+  async crearConAuditoria(data: CrearReciboData, usuarioId: string | null): Promise<Recibo> {
+    this.usuariosAuditados.push(usuarioId);
+    return this.create(data);
   }
 
   async findAllByImportacion(importacionId: string): Promise<Recibo[]> {
@@ -436,7 +442,7 @@ describe('EmitirRecibosUseCase', () => {
     ).rejects.toThrow(DomainError);
   });
 
-  it('rechaza re-emitir si ya existen recibos para la importación', async () => {
+  it('rechaza reintentar si ya se emitieron recibos para todos los empleados de la importación', async () => {
     importacionRepository.seed(importacionLista());
     reciboRepository.recibos.push(
       Recibo.create({
@@ -453,7 +459,51 @@ describe('EmitirRecibosUseCase', () => {
 
     await expect(
       useCase.execute({ importacionId: IMPORTACION_ID, empresaId: EMPRESA_ID, usuarioId: USUARIO_ID }),
-    ).rejects.toThrow('Ya se emitieron recibos para esta importación');
+    ).rejects.toThrow('Ya se emitieron recibos para todos los empleados de esta importación');
+  });
+
+  it('reanuda un lote cortado a mitad de camino: solo emite recibo para los empleados que todavía no lo tienen (recuperación ante fallos, ADR-066)', async () => {
+    empleadoRepository.empleados.push(
+      Empleado.create({
+        id: 'empleado-ana',
+        empresaId: EMPRESA_ID,
+        nombre: 'Ana',
+        apellido: 'Gomez',
+        cuil: CUIL_ANA,
+        estado: 'activo',
+      }),
+    );
+    importacionRepository.seed(
+      importacionLista({
+        filas: [
+          filaRemunerativa(CUIL_JUAN, 'Juan', 'Perez', 1000, 'f1'),
+          filaRemunerativa(CUIL_ANA, 'Ana', 'Gomez', 2000, 'f2'),
+        ],
+      }),
+    );
+    // Simula que el lote se cortó justo después de emitir el recibo de Juan.
+    reciboRepository.recibos.push(
+      Recibo.create({
+        id: 'juan-ya-emitido',
+        importacionId: IMPORTACION_ID,
+        empleadoId: 'empleado-juan',
+        numero: 1,
+        snapshot: {} as ReciboSnapshot,
+        pdfPath: 'x',
+        hashIntegridad: 'x',
+        fechaEmision: new Date(),
+      }),
+    );
+
+    const recibos = await useCase.execute({
+      importacionId: IMPORTACION_ID,
+      empresaId: EMPRESA_ID,
+      usuarioId: USUARIO_ID,
+    });
+
+    expect(recibos).toHaveLength(1);
+    expect(recibos[0].empleadoId).toBe('empleado-ana');
+    expect(recibos[0].numero).toBe(2);
   });
 
   it('rechaza si la validación de la importación tiene errores pendientes', async () => {

@@ -31,6 +31,12 @@ services:
       JWT_EXPIRES_IN: 8h
     ports:
       - '3000:3000'
+    volumes:
+      # Los PDF emitidos viven en el filesystem del contenedor
+      # (FilesystemAlmacenamientoRecibos, `uploads/recibos/`) — sin este
+      # volumen, un redeploy o reinicio del contenedor borraría todos los
+      # recibos ya emitidos, dejando registros en la base sin su archivo.
+      - backend_uploads:/app/uploads
     command: sh -c "npx prisma migrate deploy && node dist/main.js"
 
   frontend:
@@ -44,3 +50,4 @@ services:
 
 volumes:
   postgres_data:
+  backend_uploads:

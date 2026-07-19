@@ -4,6 +4,7 @@ dist/
 build/
 coverage/
 uploads/
+backups/
 *.tsbuildinfo
 .env
 .env.*.local

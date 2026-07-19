@@ -2,6 +2,26 @@
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/). Este proyecto aún no tiene versiones publicadas (pre-release).
 
+## [Unreleased] — Estabilización (Etapa 2 del plan de 9 etapas): errores, recuperación ante fallos, Docker, backups
+
+QA completo, performance y auditoría ya estaban resueltos por trabajo previo (confirmado sin cambios). El resto encontró y corrigió hallazgos reales. Ver ADR-066 en `DECISIONS.md`.
+
+### Agregado
+- `PrismaExceptionFilter` (global): traduce violaciones de restricción única de Postgres (P2002) a un 409 con mensaje claro y las registra con contexto; cualquier otro error de Prisma no anticipado queda logueado con el detalle completo (nunca expuesto al cliente) y responde el 500 genérico de siempre.
+- `ReciboRepository.crearConAuditoria`: crea el recibo y registra su entrada de auditoría "emitir" en una única transacción — ya no pueden quedar desincronizados entre sí.
+- `backend/scripts/backup.mjs` (`npm run backup`): backup lógico completo (todas las tablas + copia de `uploads/recibos/`) vía Prisma, documentado en el README junto con el procedimiento de restauración manual y el camino equivalente con `pg_dump` para Docker.
+
+### Corregido
+- **Bug real de carrera concurrente**: dos registros simultáneos con el mismo email podían chocar contra la restricción única de la base y devolver un 500 genérico en vez de un mensaje claro — reproducido con requests concurrentes reales, corregido con `PrismaExceptionFilter`.
+- **Emisión en lote ahora es reanudable**: el guard de `EmitirRecibosUseCase` pasa de ser por-importación a ser por-empleado — si un lote se corta a mitad de camino, reintentar completa solo a los empleados faltantes en vez de rechazar todo el reintento.
+- **Docker**: el CLI de `prisma` estaba en `devDependencies` pero el comando de arranque del contenedor lo necesita en runtime (`npx prisma migrate deploy`) — movido a `dependencies`. Faltaba un volumen para `uploads/recibos/` — sin él, cualquier redeploy borraba los PDF ya emitidos.
+
+### Verificado
+`tsc`, lint y 217 tests en verde (3 nuevos). Contra Postgres real: la carrera de registro ya no produce 500 (solo 201/409 con mensaje claro); un lote de emisión con un recibo borrado manualmente (simulando un corte) se completa correctamente al reintentar, sin duplicar al empleado ya emitido; el script de backup genera un dump real y consistente de las 8 tablas + los PDF.
+
+### Pendiente
+Docker sigue sin un `docker compose up --build` real de punta a punta (revisión de esta etapa fue 100% estática, sin Docker disponible). `VITE_API_URL` del frontend no se inyecta como build-arg — funciona hoy por coincidencia de topología, señalado para revisar si cambia el esquema de despliegue.
+
 ## [Unreleased] — Revisión de fidelidad del motor (Etapa 1 del plan de 9 etapas): 2 bugs reales corregidos
 
 Generando PDFs reales con combinaciones de datos nunca probadas juntas (concepto no remunerativo real, empleado sin ningún dato opcional de ficha, sin contribuciones patronales, caso más denso hasta ahora) aparecieron 2 bugs de fidelidad que ningún test anterior detectaba. Ver ADR-065 en `DECISIONS.md`.

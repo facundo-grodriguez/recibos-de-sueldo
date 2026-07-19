@@ -78,7 +78,7 @@ docker compose up --build
 
 Backend en `http://localhost:3000/api`, frontend en `http://localhost:5173`, Postgres en `localhost:5432`. El comando de arranque del backend (`docker-compose.yml`) corre `prisma migrate deploy` antes de levantar el servidor, así que las tablas quedan creadas automáticamente a partir de `backend/prisma/migrations/`.
 
-> **Nota:** `docker-compose.yml` no se probó de punta a punta en el entorno donde se escribió este proyecto (sin Docker disponible). Cada Dockerfile y la migración inicial sí se verificaron por separado (ver `CHANGELOG.md`). Si algo no encaja al primer `docker compose up --build`, es el punto más probable a revisar.
+> **Nota:** `docker-compose.yml` sigue sin probarse de punta a punta en el entorno donde se escribió este proyecto (sin Docker disponible). Sí se hizo una revisión estática completa (Etapa 2 de estabilización, ADR-066) que encontró y corrigió 2 bugs reales sin necesidad de ejecutar Docker: (1) el comando de arranque corre `npx prisma migrate deploy`, pero el CLI de `prisma` vivía en `devDependencies` — la imagen de runtime (`npm ci --omit=dev`) no lo iba a tener disponible; movido a `dependencies`. (2) no había volumen para `uploads/recibos/` (donde viven los PDF emitidos) — cualquier redeploy del contenedor los hubiera borrado, dejando registros en la base sin su archivo; agregado el volumen `backend_uploads`. Además, `VITE_API_URL` del frontend es una variable de build de Vite (se hornea en el bundle al momento de `npm run build`, no se lee en runtime) — el Dockerfile del frontend no la inyecta como build-arg, así que el bundle siempre queda con el valor por defecto (`http://localhost:3000/api`); esto funciona por coincidencia con la topología actual de `docker-compose.yml` (backend mapeado al mismo `localhost` del host), pero se rompería con cualquier otra topología de despliegue — señalado, no corregido, porque no hay evidencia de una topología distinta todavía. Con estas correcciones estáticas, el primer `docker compose up --build` real sigue siendo el próximo punto de verificación pendiente.
 
 ### Cuando cambies el schema de Prisma
 
@@ -234,6 +234,19 @@ npm test          # Vitest: value objects, auth, importación (validador/conecto
 cd frontend
 npm run lint       # oxlint
 ```
+
+## Backups
+
+`backend/scripts/backup.mjs` (`npm run backup` desde `backend/`) genera un backup lógico completo en `backend/backups/<timestamp>/` (gitignored):
+
+- Un `.json` por tabla (usuarios, empresas, empleados, importaciones, filas, catálogo de conceptos, recibos, auditoría), vía Prisma — no depende de `pg_dump` (no está disponible en este entorno de desarrollo, el paquete `embedded-postgres` no lo incluye).
+- Una copia completa de `uploads/recibos/` (los PDF ya emitidos).
+
+**Por qué se copian los PDF además de la base**, y no alcanza con la base sola: el hash de integridad de cada recibo (`Recibo.hashIntegridad`) se calculó sobre los bytes exactos del PDF en el momento de emitir. La plantilla del recibo cambia con el tiempo (varias veces solo en esta etapa del proyecto) — volver a generar el PDF desde el snapshot guardado en la base, con la plantilla de hoy, no reproduce necesariamente los mismos bytes ni el mismo hash. El PDF original es la única copia donde ese hash sigue siendo válido.
+
+**Restaurar** es intencionalmente manual, no un script automático (una restauración es una operación rara y de alto impacto — no conviene automatizar el paso destructivo): recrear la base con `prisma migrate deploy`, cargar cada `.json` con un script puntual de `prisma.<tabla>.createMany()` en el orden que respeta las referencias (`usuario` → `empresa` → `empleado`/`importacion` → `importacionFila`/`perfilMapeoConcepto`/`recibo` → `auditLog`), y copiar `uploads-recibos/` de vuelta a `backend/uploads/recibos/`.
+
+**Con Docker Compose (producción)**: no probado de punta a punta en este entorno (mismo motivo que la nota de Docker más abajo), pero el camino estándar es `docker compose exec postgres pg_dump -U recibos recibos > backup.sql` (la imagen oficial de Postgres sí incluye `pg_dump`) en vez del script de arriba, combinado con una copia del volumen `backend_uploads` por el mismo motivo (los PDF no son reconstruibles). Automatizar esto con una tarea programada es trabajo de la fase de infraestructura real, cuando exista un servidor de producción que proteger — no antes.
 
 ## Cómo hacer deploy
 

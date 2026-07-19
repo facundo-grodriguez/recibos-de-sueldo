@@ -30,7 +30,9 @@ export class EmisionController {
   ) {}
 
   @Post('emitir')
-  @Auditable('Recibo', 'emitir')
+  // Sin @Auditable: EmitirRecibosUseCase ya registra la entrada de auditoría
+  // "emitir" en la misma transacción que crea el recibo (ver ADR-066) — el
+  // interceptor genérico la duplicaría.
   async emitir(
     @Param('empresaId') empresaId: string,
     @Param('id') id: string,
