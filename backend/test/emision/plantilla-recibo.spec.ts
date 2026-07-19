@@ -110,19 +110,37 @@ describe('generarHtmlRecibo', () => {
     expect(html).toContain('Sindical');
   });
 
-  it('agrupa las contribuciones patronales por categoría con subtotal, con etiqueta legible', () => {
-    const html = generarHtmlRecibo(snapshotBase());
+  it('agrupa las contribuciones patronales por categoría con subtotal, con etiqueta legible, cuando hay 2 o más conceptos en esa categoría', () => {
+    const snapshot = snapshotBase({
+      conceptos: [
+        ...snapshotBase().conceptos,
+        concepto({ concepto: 'Aporte sindical adicional', tipo: 'contribucion_patronal', categoriaContribucion: 'sindical', monto: 15 }),
+      ],
+    });
+
+    const html = generarHtmlRecibo(snapshot);
     expect(html).toContain('Subtotal Sindical');
+  });
+
+  it('no muestra el subtotal de una categoría cuando agrupa un único concepto (revisión funcional 2026-07-19: no aporta información)', () => {
+    const html = generarHtmlRecibo(snapshotBase());
+    // El fixture base trae un solo concepto de contribución patronal ("Aporte sindical", categoría sindical).
+    expect(html).not.toContain('Subtotal Sindical');
+    expect(html).toContain('Aporte sindical');
   });
 
   it('ordena los subtotales de contribuciones según el orden fijo del Anexo III, no el orden del archivo de origen', () => {
     const snapshot = snapshotBase({
       // "art" aparece primero en los conceptos, pero el orden fijo del Anexo
-      // III pone "seguridad_social" y "obra_social" antes que "art".
+      // III pone "seguridad_social" y "obra_social" antes que "art". Cada
+      // categoría trae 2 conceptos para que se genere su fila de subtotal.
       conceptos: [
         concepto({ concepto: 'ART', tipo: 'contribucion_patronal', categoriaContribucion: 'art', monto: 30 }),
+        concepto({ concepto: 'ART adicional', tipo: 'contribucion_patronal', categoriaContribucion: 'art', monto: 5 }),
         concepto({ concepto: 'Jubilación patronal', tipo: 'contribucion_patronal', categoriaContribucion: 'seguridad_social', monto: 20 }),
+        concepto({ concepto: 'Jubilación patronal adicional', tipo: 'contribucion_patronal', categoriaContribucion: 'seguridad_social', monto: 5 }),
         concepto({ concepto: 'Aporte sindical', tipo: 'contribucion_patronal', categoriaContribucion: 'sindical', monto: 50 }),
+        concepto({ concepto: 'Aporte sindical adicional', tipo: 'contribucion_patronal', categoriaContribucion: 'sindical', monto: 5 }),
       ],
     });
 
@@ -247,6 +265,20 @@ describe('generarHtmlRecibo', () => {
 
     expect(html).toContain(`Empleador: ${formatearMonto(50)}`);
     expect(html).toContain(`Trabajador: ${formatearMonto(110)}`);
+  });
+
+  it('ubica la Firma inmediatamente después del Sueldo Neto, antes del Detalle de composición salarial y el gráfico (orden del Anexo III oficial)', () => {
+    const html = generarHtmlRecibo(snapshotBase());
+
+    const posicionNeto = html.indexOf('Remuneración neta');
+    const posicionFirma = html.indexOf('Firma del trabajador');
+    const posicionDetalle = html.indexOf('class="pie-documento"');
+
+    expect(posicionNeto).toBeGreaterThan(-1);
+    expect(posicionFirma).toBeGreaterThan(-1);
+    expect(posicionDetalle).toBeGreaterThan(-1);
+    expect(posicionNeto).toBeLessThan(posicionFirma);
+    expect(posicionFirma).toBeLessThan(posicionDetalle);
   });
 
   it('no muestra un sub-renglón de Empleador o Trabajador cuando ese lado es cero', () => {

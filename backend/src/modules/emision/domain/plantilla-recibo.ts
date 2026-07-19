@@ -115,11 +115,6 @@ export function generarHtmlRecibo(snapshot: ReciboSnapshot): string {
   const contribuciones = conceptos.filter((c) => c.tipo === 'contribucion_patronal');
   const mostrarCalculo = conceptos.some((c) => c.unidad !== null || c.base !== null);
 
-  const totalRemunerativo = conceptos.filter((c) => c.tipo === 'remunerativo').reduce((acc, c) => acc + c.monto, 0);
-  const totalNoRemunerativo = conceptos
-    .filter((c) => c.tipo === 'no_remunerativo')
-    .reduce((acc, c) => acc + c.monto, 0);
-
   const contribucionesPorCategoria = new Map<string, ReciboSnapshotConcepto[]>();
   for (const concepto of contribuciones) {
     const clave = concepto.categoriaContribucion ?? 'otros';
@@ -130,12 +125,16 @@ export function generarHtmlRecibo(snapshot: ReciboSnapshot): string {
 
   // Mismo orden fijo del Anexo III que usa el gráfico de torta (ver ADR-039):
   // nunca el orden de aparición en el archivo de origen, que es arbitrario.
+  // El subtotal de una categoría solo se muestra si agrupa 2 o más conceptos
+  // (revisión funcional 2026-07-19): con un único concepto, el subtotal es
+  // idéntico al monto de esa fila y no aporta ninguna información nueva.
   const filasContribuciones = CATEGORIAS_CONTRIBUCION_ORDEN.map(({ categoria, etiqueta }) => {
     const items = contribucionesPorCategoria.get(categoria);
     if (!items || items.length === 0) return '';
+    const filas = items.map((c) => filaConcepto(c, mostrarCalculo)).join('');
+    if (items.length === 1) return filas;
     const subtotal = items.reduce((acc, c) => acc + c.monto, 0);
     const colspanPrevio = mostrarCalculo ? 3 : 1;
-    const filas = items.map((c) => filaConcepto(c, mostrarCalculo)).join('');
     return `${filas}<tr class="subtotal"><td colspan="${colspanPrevio}">Subtotal ${escaparHtml(etiqueta)}</td><td class="monto">${formatearMonto(subtotal)}</td></tr>`;
   }).join('');
 
@@ -207,9 +206,6 @@ export function generarHtmlRecibo(snapshot: ReciboSnapshot): string {
   .destacado.costo-laboral .etiqueta-destacado { color: #d8d6cb; }
   .destacado.costo-laboral .monto-destacado { font-size: 16px; color: #fdfdfb; }
 
-  .resumen-composicion { display: flex; flex-wrap: wrap; gap: 4px 16px; font-size: 9.5px; color: #52514e; margin: 4px 0; }
-  .resumen-composicion b { color: #0b0b0b; font-variant-numeric: tabular-nums; }
-
   .pie-documento { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-start; margin-top: 6px; }
   .detalle-composicion { flex: 3; min-width: 220px; display: flex; flex-wrap: wrap; gap: 4px 20px; }
   .detalle-item { min-width: 150px; font-size: 9.5px; }
@@ -258,14 +254,14 @@ export function generarHtmlRecibo(snapshot: ReciboSnapshot): string {
   ${destacado('Sueldo bruto', totales.totalBruto)}
   ${envolverTabla(remunerativos.map((c) => filaConcepto(c, mostrarCalculo)).join(''), totalBrutoFila, mostrarCalculo)}
   ${envolverTabla(deducciones.map((c) => filaConcepto(c, mostrarCalculo)).join(''), totalDeduccionesFila, mostrarCalculo)}
-  <div class="resumen-composicion">
-    <span>Remunerativo: <b>${formatearMonto(totalRemunerativo)}</b></span>
-    <span>No remunerativo: <b>${formatearMonto(totalNoRemunerativo)}</b></span>
-    <span>Descuentos: <b>${formatearMonto(totales.totalDeducciones)}</b></span>
-  </div>
 
   <h2>Remuneración neta</h2>
   ${destacado('Sueldo neto', totales.neto, 'neto')}
+
+  <div class="pie-firma">
+    <p>Recibí conforme la suma indicada.<br>${escaparHtml(periodo.lugarPago)}, ${escaparHtml(periodo.fechaPago)}.</p>
+    <div class="linea-firma">Firma del trabajador</div>
+  </div>
 
   <div class="pie-documento">
     <div class="detalle-composicion">
@@ -277,10 +273,6 @@ export function generarHtmlRecibo(snapshot: ReciboSnapshot): string {
     </div>
   </div>
 
-  <div class="pie-firma">
-    <p>Recibí conforme la suma indicada.<br>${escaparHtml(periodo.lugarPago)}, ${escaparHtml(periodo.fechaPago)}.</p>
-    <div class="linea-firma">Firma del trabajador</div>
-  </div>
   <p class="nota-legal">Recibo conforme Anexo III, Decreto 407/2026. Documento de repositorio técnico — ver Términos y Condiciones.</p>
 </body>
 </html>`;

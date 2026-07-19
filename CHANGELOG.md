@@ -12,6 +12,20 @@ Antes de considerar cerrado el MVP se ejecutó una prueba funcional completa des
 ### Verificado
 Flujo completo confirmado end-to-end con datos reales del Anexo III (Jubilación, SIPA, OSECAC, ART+FFEP, Sindicato). Ver ADR-057 para el detalle y las dos limitaciones de robustez encontradas (emisión en lote no atómica, auditoría no atómica con la creación del recibo) que quedan pendientes de decisión, no corregidas en esta tarea.
 
+## [Unreleased] — Fidelidad del recibo al Anexo III oficial: orden de la Firma, resumen redundante, regla de subtotales
+
+Tras la revisión funcional del recibo generado contra el Excel oficial, se implementaron 3 de los 4 hallazgos (ver ADR-060 en `DECISIONS.md`).
+
+### Cambiado
+- La Firma ("Recibí conforme la suma indicada...") se renderiza ahora inmediatamente después del Sueldo Neto, antes del Detalle de composición salarial y el gráfico de torta — orden idéntico al Excel oficial (antes iba después de ambos).
+- El subtotal de una categoría de contribución patronal ("Subtotal Seguridad Social", etc.) solo se muestra cuando esa categoría agrupa 2 o más conceptos; con un único concepto se omite, porque era idéntico al monto de esa fila.
+
+### Quitado
+- La línea de resumen "Remunerativo: $X No remunerativo: $Y Descuentos: $Z" — repetía sin agregar dato nuevo los totales ya mostrados en la misma sección.
+
+### Verificado
+`tsc`, lint y 199 tests en verde (2 tests reescritos, 2 nuevos). Confirmado además con un PDF real generado con 3 categorías de contribución patronal (una con 2 conceptos, dos con 1 concepto cada una).
+
 ## [Unreleased] — Modelo funcional del Anexo III aprobado; campo Banco y rediseño del gráfico de torta
 
 Tras la aprobación de `docs/modelo-funcional-anexo-iii.md` como especificación funcional base (ver ADR-055/056 en `DECISIONS.md`), se implementaron los dos hallazgos de ese análisis que requerían código.
