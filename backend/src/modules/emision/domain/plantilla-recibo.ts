@@ -39,7 +39,11 @@ function escaparHtml(texto: string): string {
     .replace(/'/g, '&#39;');
 }
 
-/** Bloque "etiqueta arriba, valor abajo" — se omite entero si no hay valor. */
+/**
+ * Bloque "etiqueta arriba, valor abajo" — se omite entero si no hay valor.
+ * Nunca se completa con un placeholder ni un valor asumido: si el dato no
+ * vino del origen, el campo directamente no aparece (ADR-071).
+ */
 function campo(etiqueta: string, valor: string | null): string {
   if (!valor) return '';
   return `<div class="campo"><span class="etiqueta">${escaparHtml(etiqueta)}</span><span class="valor">${escaparHtml(valor)}</span></div>`;
@@ -70,6 +74,9 @@ function destacado(etiqueta: string, monto: number, claseExtra = ''): string {
  * plantilla oficial de referencia) — esas dos columnas solo se muestran si
  * al menos un concepto del recibo entero las trae; si ninguno las trae, se
  * omiten por completo en vez de dejar dos columnas vacías sin información.
+ * Por concepto individual rige lo mismo: si el origen no informó unidad o
+ * base para esa fila puntual, se imprime "—" (ver `filaConcepto`) — nunca
+ * se infiere a partir de otro dato del mismo recibo (ADR-071).
  */
 // "col-numerica": toda columna numérica (Unidad, Base, Monto) queda
 // centrada respecto de su propia columna — nunca desplazada a izquierda ni

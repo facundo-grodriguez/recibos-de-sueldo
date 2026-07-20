@@ -46,6 +46,8 @@ function parsearMonto(raw: string): Money {
  * A diferencia de `parsearMonto`, nunca lanza: `base` es puramente
  * informativa (de dónde salió el monto ya liquidado), así que si viene mal
  * cargada la fila igual es válida — simplemente no se muestra esa base.
+ * Si el origen no la informó, queda en `null` — nunca se infiere ni se
+ * calcula un valor por defecto (ADR-071: fidelidad absoluta al origen).
  */
 function parsearBaseOpcional(raw: string | undefined): number | null {
   if (!raw?.trim()) return null;
@@ -53,6 +55,7 @@ function parsearBaseOpcional(raw: string | undefined): number | null {
   return Number.isFinite(numero) && numero >= 0 ? numero : null;
 }
 
+/** Mismo principio que `parsearBaseOpcional` (ADR-071): ausente en el origen → `null`, nunca un valor asumido. */
 function parsearUnidadOpcional(raw: string | undefined): string | null {
   const texto = raw?.trim();
   return texto ? texto : null;
