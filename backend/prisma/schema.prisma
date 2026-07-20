@@ -124,9 +124,13 @@ model ImportacionFila {
   errorMensaje  String?  @map("error_mensaje")
 
   // Fase 2: nulos hasta que el motor de mapeo clasifica el concepto de la fila.
-  // categoriaContribucion es obligatoria si tipo = "contribucion_patronal",
-  // opcional si tipo = "deduccion" (para cruzar Empleador/Trabajador en el
-  // recibo), y siempre nula en remunerativo/no_remunerativo.
+  // categoriaContribucion es obligatoria si tipo = "contribucion_patronal" o
+  // "deduccion" (ADR-069: todo concepto con impacto económico en el costo
+  // laboral queda clasificado por definición del modelo, 'otros' es la
+  // categoría residual), y siempre nula en remunerativo/no_remunerativo.
+  // Sigue nullable acá a nivel de columna (igual que siempre): la regla se
+  // exige en el dominio (ClasificacionConcepto.create), no con un CHECK de
+  // base de datos.
   tipo                  String?
   categoriaContribucion String? @map("categoria_contribucion")
 

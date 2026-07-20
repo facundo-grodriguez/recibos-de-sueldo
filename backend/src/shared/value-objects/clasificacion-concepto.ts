@@ -11,11 +11,12 @@ export type TipoConcepto = (typeof TIPOS_CONCEPTO)[number];
 // Las 7 categorías de contribución patronal exigidas por el Anexo III (Decreto
 // 407/2026), más 'ganancias' (Impuesto a las Ganancias — ADR-068): a
 // diferencia de las otras 7, nunca es una contribución patronal real (ningún
-// empleador aporta Ganancias), solo aplica como categoría opcional de una
-// deducción. Se agrega igual a esta única lista (en vez de crear una lista
-// aparte) porque `categoriaContribucion` ya es opcional y de uso libre para
-// deducción — no hace falta una segunda enumeración para un caso que el tipo
-// ya contempla.
+// empleador aporta Ganancias), solo aplica a una deducción. Se agrega igual a
+// esta única lista (en vez de crear una lista aparte) porque
+// `categoriaContribucion` es el mismo campo para ambos tipos — no hace falta
+// una segunda enumeración para un caso que el tipo ya contempla. 'otros' es
+// la categoría residual real para lo que no encaje en ninguna categoría
+// normativa (ADR-069) — nunca un cajón para "no lo clasifiqué".
 export const CATEGORIAS_CONTRIBUCION = [
   'sindical',
   'seguridad_social',
@@ -30,13 +31,17 @@ export type CategoriaContribucion = (typeof CATEGORIAS_CONTRIBUCION)[number];
 
 /**
  * Clasificación normativa de un concepto. `categoriaContribucion`:
- * - Obligatoria cuando `tipo === 'contribucion_patronal'`.
- * - Opcional cuando `tipo === 'deduccion'` (Fase de rediseño de plantilla):
- *   permite cruzar, en el "Detalle de composición salarial", cuánto puso el
- *   empleador y cuánto puso el trabajador de la misma categoría (ej.
- *   Seguridad Social). No toda deducción encaja en una categoría del Anexo
- *   III (ej. un adelanto), así que acá queda nula.
- * - Siempre nula para `remunerativo`/`no_remunerativo`.
+ * - Obligatoria cuando `tipo === 'contribucion_patronal'` o
+ *   `tipo === 'deduccion'` (ADR-069): todo concepto con impacto económico en
+ *   el costo laboral queda clasificado por definición del modelo, no como
+ *   parche para que una suma cierre. Permite cruzar, en el "Detalle de
+ *   composición salarial" y en el gráfico de torta, cuánto puso el empleador
+ *   y cuánto puso el trabajador de la misma categoría (ej. Seguridad
+ *   Social). 'otros' es la categoría residual para lo que no encaje en
+ *   ninguna categoría normativa (ej. un adelanto) — siempre disponible,
+ *   nunca bloquea la clasificación.
+ * - Siempre nula para `remunerativo`/`no_remunerativo` (no participan del
+ *   costo laboral por categoría).
  */
 export class ClasificacionConcepto {
   private constructor(
@@ -51,20 +56,13 @@ export class ClasificacionConcepto {
       );
     }
 
-    if (tipo === 'contribucion_patronal') {
+    if (tipo === 'contribucion_patronal' || tipo === 'deduccion') {
       if (!categoriaContribucion || !(CATEGORIAS_CONTRIBUCION as readonly string[]).includes(categoriaContribucion)) {
         throw new DomainError(
-          `Una contribución patronal requiere una categoría válida: ${CATEGORIAS_CONTRIBUCION.join(', ')}`,
+          `Un concepto de tipo "${tipo}" requiere una categoría válida: ${CATEGORIAS_CONTRIBUCION.join(', ')}`,
         );
       }
       return new ClasificacionConcepto(tipo as TipoConcepto, categoriaContribucion as CategoriaContribucion);
-    }
-
-    if (tipo === 'deduccion') {
-      if (categoriaContribucion && !(CATEGORIAS_CONTRIBUCION as readonly string[]).includes(categoriaContribucion)) {
-        throw new DomainError(`Categoría de contribución inválida: ${CATEGORIAS_CONTRIBUCION.join(', ')}`);
-      }
-      return new ClasificacionConcepto(tipo as TipoConcepto, (categoriaContribucion as CategoriaContribucion) || null);
     }
 
     if (categoriaContribucion) {

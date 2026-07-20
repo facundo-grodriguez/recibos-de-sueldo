@@ -10,6 +10,12 @@ import { ReciboSnapshotDetalleCategoria } from './recibo-snapshot';
  * "Detalle de la composición salarial" de la plantilla oficial. Mismo orden
  * fijo del Anexo III que el resto del recibo (ver ADR-039/046); las
  * categorías sin ningún monto (ni empleador ni trabajador) no se incluyen.
+ *
+ * Desde ADR-069, `categoriaContribucion` es obligatoria para
+ * `contribucion_patronal` y `deduccion` (nunca nula) por invariante de
+ * `ClasificacionConcepto.create` — el filtro de categoría nula de acá abajo
+ * queda como red de seguridad ante datos de una importación previa a esa
+ * migración, no como un caso esperado.
  */
 export function construirDetalleComposicionSalarial(filas: ImportacionFila[]): ReciboSnapshotDetalleCategoria[] {
   const porCategoria = new Map<CategoriaContribucion, { empleador: number; trabajador: number }>();

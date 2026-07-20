@@ -44,7 +44,7 @@ describe('calcularTotalesEmpleado', () => {
     const totales = calcularTotalesEmpleado([
       filaClasificada('remunerativo', 1000),
       filaClasificada('no_remunerativo', 200),
-      filaClasificada('deduccion', 300),
+      filaClasificada('deduccion', 300, 'otros'),
       filaClasificada('contribucion_patronal', 150, 'art'),
     ]);
 

@@ -2,6 +2,17 @@
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/). Este proyecto aún no tiene versiones publicadas (pre-release).
 
+## [Unreleased] — `categoriaContribucion` obligatoria también para deducciones: el gráfico cierra el 100% por definición del modelo
+
+Resuelve el gap señalado como "Pendiente" en el cambio anterior (ADR-068): una deducción sin categoría quedaba fuera del gráfico de torta. Ver ADR-069 en `DECISIONS.md`.
+
+### Cambiado
+- **`categoriaContribucion` ahora es obligatoria también para `tipo = 'deduccion'`** (antes solo lo era para `contribucion_patronal`): toda deducción con impacto económico en el costo laboral queda clasificada por definición del modelo, no como parche para que una suma cierre. `'otros'` sigue siendo la categoría residual real para lo que no encaje en ninguna categoría normativa — nunca un cajón para "no lo clasifiqué".
+- Nueva migración de Prisma (`20260720123034_backfill_categoria_contribucion_deduccion`): compatibilidad hacia atrás para datos cargados antes de esta regla — cualquier deducción sin categoría se migra a `'otros'`. A partir de acá, toda deducción nueva se clasifica siempre con una categoría real.
+
+### Verificado
+`tsc` y suite completa en verde (backend 221 tests, frontend 29 tests). Test de integración nuevo que arma un bruto + una deducción "Ganancias" sin contraparte patronal + una contribución patronal, y confirma que la suma de los gajos del gráfico coincide exactamente con el costo laboral total. Migración aplicada y confirmada contra Postgres real (0 filas afectadas en la base de desarrollo actual).
+
 ## [Unreleased] — Dos ajustes basados en evidencia de datasets reales (importación y categoría "Ganancias")
 
 Investigación técnica sin implementación (previa a este cambio) comparó el modelo de dominio contra 4 proyectos reales de GitHub de liquidación de sueldos argentina. De los hallazgos, 2 eran concretos y de bajo riesgo; el resto sigue diferido por falta de evidencia suficiente. Ver ADR-068 en `DECISIONS.md`.

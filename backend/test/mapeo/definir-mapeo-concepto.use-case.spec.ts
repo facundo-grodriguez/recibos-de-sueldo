@@ -225,14 +225,14 @@ describe('DefinirMapeoConceptoUseCase', () => {
       usuarioId: USUARIO_ID,
       concepto: 'ART',
       tipo: 'deduccion',
-      categoriaContribucion: null,
+      categoriaContribucion: 'art',
     });
 
     expect(auditLogRepository.entradas).toHaveLength(2);
     expect(auditLogRepository.entradas[1]).toMatchObject({
       accion: 'modificar',
       valorAnterior: JSON.stringify({ tipo: 'contribucion_patronal', categoriaContribucion: 'art' }),
-      valorNuevo: JSON.stringify({ tipo: 'deduccion', categoriaContribucion: null }),
+      valorNuevo: JSON.stringify({ tipo: 'deduccion', categoriaContribucion: 'art' }),
     });
   });
 

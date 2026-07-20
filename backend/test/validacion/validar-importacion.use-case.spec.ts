@@ -192,7 +192,7 @@ describe('ValidarImportacionUseCase', () => {
         nombreArchivo: 'julio.csv',
         estado: 'confirmada',
         fechaImportacion: new Date('2026-07-17T00:00:00.000Z'),
-        filas: [fila({ id: 'f1', cuil: CUIL_A, monto: 100, tipo: 'deduccion' })],
+        filas: [fila({ id: 'f1', cuil: CUIL_A, monto: 100, tipo: 'deduccion', categoriaContribucion: 'otros' })],
       }),
     );
 

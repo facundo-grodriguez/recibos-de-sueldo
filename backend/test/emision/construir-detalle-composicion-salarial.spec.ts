@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { construirDetalleComposicionSalarial } from '../../src/modules/emision/domain/construir-detalle-composicion-salarial';
+import { construirSegmentosCostoLaboral } from '../../src/modules/emision/domain/construir-segmentos-costo-laboral';
+import { calcularTotalesEmpleado } from '../../src/modules/validacion/domain/calcular-totales-empleado';
 import { ImportacionFila } from '../../src/modules/importacion/domain/importacion-fila.entity';
 import { ClasificacionConcepto } from '../../src/shared/value-objects/clasificacion-concepto';
 
@@ -87,10 +89,10 @@ describe('construirDetalleComposicionSalarial', () => {
     expect(detalle.map((d) => d.categoria)).toEqual(['sindical', 'art']);
   });
 
-  it('ignora deducciones sin categoría (no toda deducción encaja en el Anexo III)', () => {
-    const filas = [fila({ id: 'f1', tipo: 'deduccion', categoriaContribucion: null, monto: 5000 })];
-
-    expect(construirDetalleComposicionSalarial(filas)).toEqual([]);
+  it('ya no permite construir una deducción sin categoría (ADR-069: la clasificación lo exige antes de llegar acá)', () => {
+    expect(() =>
+      fila({ id: 'f1', tipo: 'deduccion', categoriaContribucion: null, monto: 5000 }),
+    ).toThrow('requiere una categoría válida');
   });
 
   it('ignora conceptos remunerativos y no remunerativos (nunca tienen categoría de contribución)', () => {
@@ -108,5 +110,22 @@ describe('construirDetalleComposicionSalarial', () => {
     ];
 
     expect(construirDetalleComposicionSalarial(filas)).toEqual([]);
+  });
+
+  describe('integración con el gráfico de torta (ADR-069)', () => {
+    it('el gráfico suma el 100% del costo laboral aun con una deducción sin contraparte patronal (ej. Ganancias)', () => {
+      const filas = [
+        fila({ id: 'f1', tipo: 'remunerativo', monto: 1_000_000 }),
+        fila({ id: 'f2', tipo: 'deduccion', categoriaContribucion: 'ganancias', monto: 150_000 }),
+        fila({ id: 'f3', tipo: 'contribucion_patronal', categoriaContribucion: 'seguridad_social', monto: 200_000 }),
+      ];
+
+      const totales = calcularTotalesEmpleado(filas);
+      const detalle = construirDetalleComposicionSalarial(filas);
+      const segmentos = construirSegmentosCostoLaboral(detalle, totales.neto, totales.costoLaboralTotal);
+
+      const sumaSegmentos = segmentos.reduce((acumulado, s) => acumulado + s.monto, 0);
+      expect(sumaSegmentos).toBe(totales.costoLaboralTotal);
+    });
   });
 });

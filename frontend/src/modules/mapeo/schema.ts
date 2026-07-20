@@ -37,9 +37,14 @@ export const definirMapeoSchema = z
     tipo: z.enum(TIPOS_CONCEPTO),
     categoriaContribucion: z.enum(CATEGORIAS_CONTRIBUCION).optional(),
   })
-  .refine((datos) => datos.tipo !== 'contribucion_patronal' || datos.categoriaContribucion !== undefined, {
-    message: 'Una contribución patronal necesita una categoría',
-    path: ['categoriaContribucion'],
-  });
+  .refine(
+    (datos) =>
+      (datos.tipo !== 'contribucion_patronal' && datos.tipo !== 'deduccion') ||
+      datos.categoriaContribucion !== undefined,
+    {
+      message: 'Este tipo de concepto necesita una categoría (usá "Otros" si no encaja en ninguna)',
+      path: ['categoriaContribucion'],
+    },
+  );
 
 export type DefinirMapeoFormValues = z.infer<typeof definirMapeoSchema>;

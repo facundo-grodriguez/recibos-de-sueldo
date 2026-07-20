@@ -31,15 +31,19 @@ describe('ClasificacionConcepto', () => {
     expect(() => ClasificacionConcepto.create('no_remunerativo', 'art')).toThrow(DomainError);
   });
 
-  it('acepta una deducción con categoría opcional, para cruzarla con la contribución patronal equivalente', () => {
+  it('acepta una deducción con una categoría válida, para cruzarla con la contribución patronal equivalente', () => {
     const clasificacion = ClasificacionConcepto.create('deduccion', 'sindical');
     expect(clasificacion.tipo).toBe('deduccion');
     expect(clasificacion.categoriaContribucion).toBe('sindical');
   });
 
-  it('acepta una deducción sin categoría (no toda deducción encaja en una categoría del Anexo III)', () => {
-    const clasificacion = ClasificacionConcepto.create('deduccion', null);
-    expect(clasificacion.categoriaContribucion).toBeNull();
+  it('rechaza una deducción sin categoría (ADR-069: toda deducción con impacto en el costo laboral debe quedar clasificada; "otros" es la salida residual)', () => {
+    expect(() => ClasificacionConcepto.create('deduccion', null)).toThrow(DomainError);
+  });
+
+  it('acepta una deducción con categoría "otros" para lo que no encaja en ninguna categoría normativa (ej. un adelanto)', () => {
+    const clasificacion = ClasificacionConcepto.create('deduccion', 'otros');
+    expect(clasificacion.categoriaContribucion).toBe('otros');
   });
 
   it('acepta una deducción con categoría "ganancias" (retención de Impuesto a las Ganancias, ADR-068)', () => {
