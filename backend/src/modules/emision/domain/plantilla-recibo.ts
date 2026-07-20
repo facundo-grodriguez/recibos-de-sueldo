@@ -190,14 +190,14 @@ export function generarHtmlRecibo(snapshot: ReciboSnapshot): string {
     if (items.length === 1) return filas;
     const subtotal = items.reduce((acc, c) => acc + c.monto, 0);
     const colspanPrevio = mostrarCalculo ? 3 : 1;
-    return `${filas}<tr class="subtotal"><td colspan="${colspanPrevio}">Subtotal ${escaparHtml(etiqueta)}</td><td class="monto">${formatearMonto(subtotal)}</td></tr>`;
+    return `${filas}<tr class="subtotal"><td colspan="${colspanPrevio}">Subtotal ${escaparHtml(etiqueta)}</td><td class="col-numerica monto">${formatearMonto(subtotal)}</td></tr>`;
   }).join('');
 
   const colspanTotal = mostrarCalculo ? 3 : 1;
-  const totalContribuciones = `<tr class="total-row"><td colspan="${colspanTotal}">Total contribuciones patronales</td><td class="monto">${formatearMonto(totales.totalContribucionesPatronales)}</td></tr>`;
-  const totalRemunerativoFila = `<tr class="total-row"><td colspan="${colspanTotal}">Total remunerativo</td><td class="monto">${formatearMonto(remunerativosPuros.reduce((acc, c) => acc + c.monto, 0))}</td></tr>`;
-  const totalNoRemunerativoFila = `<tr class="total-row"><td colspan="${colspanTotal}">Total no remunerativo</td><td class="monto">${formatearMonto(noRemunerativos.reduce((acc, c) => acc + c.monto, 0))}</td></tr>`;
-  const totalDeduccionesFila = `<tr class="total-row"><td colspan="${colspanTotal}">Total deducciones</td><td class="monto">${formatearMonto(totales.totalDeducciones)}</td></tr>`;
+  const totalContribuciones = `<tr class="total-row"><td colspan="${colspanTotal}">Total contribuciones patronales</td><td class="col-numerica monto">${formatearMonto(totales.totalContribucionesPatronales)}</td></tr>`;
+  const totalRemunerativoFila = `<tr class="total-row"><td colspan="${colspanTotal}">Total remunerativo</td><td class="col-numerica monto">${formatearMonto(remunerativosPuros.reduce((acc, c) => acc + c.monto, 0))}</td></tr>`;
+  const totalNoRemunerativoFila = `<tr class="total-row"><td colspan="${colspanTotal}">Total no remunerativo</td><td class="col-numerica monto">${formatearMonto(noRemunerativos.reduce((acc, c) => acc + c.monto, 0))}</td></tr>`;
+  const totalDeduccionesFila = `<tr class="total-row"><td colspan="${colspanTotal}">Total deducciones</td><td class="col-numerica monto">${formatearMonto(totales.totalDeducciones)}</td></tr>`;
 
   const leyendaGrafico = segmentosCostoLaboral
     .map(
@@ -263,17 +263,21 @@ export function generarHtmlRecibo(snapshot: ReciboSnapshot): string {
   .destacado.costo-laboral .monto-destacado { font-size: 16px; color: #fdfdfb; }
 
   .pie-documento { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-start; margin-top: 6px; }
-  .detalle-composicion { flex: 3; min-width: 220px; display: flex; flex-wrap: wrap; gap: 4px 20px; }
-  .detalle-item { min-width: 150px; font-size: 9.5px; }
+  /* Grid de 2 columnas fijas (no flex-wrap orgánico): la cantidad de
+     categorías con importe varía de un recibo a otro, pero la estructura
+     visual de "dos columnas" se mantiene siempre igual, sin línea divisoria,
+     aunque quede una celda vacía al final con un número impar de categorías. */
+  .detalle-composicion { flex: 3; min-width: 220px; display: grid; grid-template-columns: 1fr 1fr; gap: 4px 20px; align-content: start; }
+  .detalle-item { font-size: 9.5px; }
   .detalle-item-total { display: flex; justify-content: space-between; font-weight: 600; }
   .detalle-item-total .monto { font-variant-numeric: tabular-nums; }
   .detalle-item-sub { display: flex; gap: 10px; color: #767568; }
 
-  /* El gráfico es un complemento informativo, no el protagonista: el SVG en
-     sí queda chico (52px) a propósito; el ancho del contenedor solo le da
-     más aire a la leyenda de texto, no agranda el gráfico. */
-  .grafico-container { flex: 1; max-width: 200px; display: flex; align-items: center; gap: 6px; }
-  .grafico-container svg { width: 52px; height: 52px; flex-shrink: 0; }
+  /* El gráfico sigue siendo un complemento, no el protagonista, pero con más
+     presencia que antes para equilibrar mejor contra el detalle de
+     composición (que ahora ocupa siempre sus 2 columnas completas). */
+  .grafico-container { flex: 1; max-width: 230px; display: flex; align-items: center; gap: 10px; }
+  .grafico-container svg { width: 68px; height: 68px; flex-shrink: 0; }
   ul.leyenda { list-style: none; margin: 0; padding: 0; font-size: 8px; flex: 1; min-width: 0; }
   ul.leyenda li { margin-bottom: 2px; }
   /* El monto y el porcentaje nunca se separan entre sí al hacer wrap — si
@@ -282,7 +286,9 @@ export function generarHtmlRecibo(snapshot: ReciboSnapshot): string {
   ul.leyenda .valor { white-space: nowrap; }
   .swatch { display: inline-block; width: 8px; height: 8px; margin-right: 4px; border-radius: 2px; }
 
-  .pie-firma { display: flex; justify-content: space-between; align-items: flex-end; margin-top: 8px; font-size: 9.5px; color: #52514e; }
+  /* Más aire respecto del Sueldo Neto (antes 8px, quedaba pegado y sin
+     jerarquía propia de bloque de cierre). */
+  .pie-firma { display: flex; justify-content: space-between; align-items: flex-end; margin-top: 22px; font-size: 9.5px; color: #52514e; }
   .linea-firma { border-top: 1px solid #0b0b0b; padding-top: 2px; min-width: 160px; text-align: center; }
   .nota-legal { font-size: 8px; color: #9a9990; margin-top: 6px; }
 </style>

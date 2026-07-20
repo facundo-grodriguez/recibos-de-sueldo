@@ -2,6 +2,22 @@
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/). Este proyecto aún no tiene versiones publicadas (pre-release).
 
+## [Unreleased] — Mejora visual del PDF (sin cambios de cálculo ni de lógica de negocio)
+
+Pasada puramente de CSS/HTML sobre `plantilla-recibo.ts`, a pedido del usuario. Ver ADR-070 en `DECISIONS.md`.
+
+### Cambiado
+- Los montos de las filas de subtotal y total (por sección y por categoría de contribución) ahora quedan centrados en la columna "Monto", igual que el resto de la tabla — antes usaban solo la clase `monto`, sin `col-numerica`.
+- Más separación vertical entre el Sueldo Neto y el bloque de firma (`margin-top` de 8px a 22px).
+- El "Detalle de composición salarial" pasa a una grilla de 2 columnas fijas (antes organizaba las categorías con flexbox según el ancho disponible, con una cantidad de columnas variable) — la estructura visual de 2 columnas se mantiene siempre igual, sin línea divisoria, incluso con un número impar de categorías.
+- El gráfico de torta se agranda levemente (52px → 68px) para equilibrar mejor la proporción contra el detalle de composición.
+
+### Analizado, sin cambios
+La leyenda legal del pie ("Recibo conforme Anexo III... Documento de repositorio técnico — ver Términos y Condiciones") se mantiene sin modificaciones: sigue cumpliendo la función de deslinde decidida en `docs/estrategia-producto.md` (mitigar que el cliente confunda el documento con su archivo legal oficial), y es el único lugar donde ese deslinde llega a quien recibe el PDF sin pasar por la aplicación web.
+
+### Verificado
+`tsc` y suite completa en verde (backend 223 tests, sin tests nuevos — no hay lógica nueva que testear). Verificación visual real con un PDF generado directamente desde la plantilla (7 categorías de contribución, número impar a propósito), confirmando los 3 ajustes sin romper la garantía de una sola página A4.
+
 ## [Unreleased] — Guardas de exhaustividad: un tipo de concepto nuevo ya no puede desaparecer en silencio
 
 Antes de cerrar el cambio anterior, se verificó (a pedido explícito) que no existan otros conceptos, actuales o futuros, que puedan quedar fuera del costo laboral o del recibo por una regla similar a la de "Ganancias". Ver addendum de ADR-069 en `DECISIONS.md`.
