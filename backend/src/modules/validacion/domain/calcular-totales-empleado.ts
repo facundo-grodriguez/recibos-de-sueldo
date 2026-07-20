@@ -1,4 +1,5 @@
 import { ImportacionFila } from '../../importacion/domain/importacion-fila.entity';
+import { DomainError } from '../../../shared/errors/domain-error';
 import { TotalesEmpleado } from './resultado-validacion';
 
 /**
@@ -29,6 +30,14 @@ export function calcularTotalesEmpleado(filas: ImportacionFila[]): TotalesEmplea
       case 'contribucion_patronal':
         totalContribucionesPatronales += fila.monto;
         break;
+      default: {
+        // Guarda de exhaustividad (a propósito, ver clasificacion-concepto.ts):
+        // si se agrega un TipoConcepto nuevo sin sumarlo acá, esta asignación
+        // deja de tipar contra `never` y la compilación falla — nunca queda
+        // un tipo nuevo excluido en silencio de los totales.
+        const tipoNoContemplado: never = fila.clasificacion.tipo;
+        throw new DomainError(`Tipo de concepto sin contemplar en el cálculo de totales: "${tipoNoContemplado}"`);
+      }
     }
   }
 

@@ -338,4 +338,18 @@ describe('generarHtmlRecibo', () => {
     const bloqueSindical = html.slice(html.indexOf('Sindical'), html.indexOf('Sindical') + 200);
     expect(bloqueSindical).not.toContain(`Trabajador: ${formatearMonto(0)}`);
   });
+
+  describe('guarda de cobertura (un tipo sin contemplar no puede desaparecer del recibo en silencio)', () => {
+    it('rechaza emitir si algún concepto tiene un tipo que ninguna de las 4 tablas reconoce', () => {
+      const snapshot = snapshotBase({
+        conceptos: [
+          ...snapshotBase().conceptos,
+          concepto({ concepto: 'Retención judicial', tipo: 'retencion_judicial', monto: 200 }),
+        ],
+      });
+
+      expect(() => generarHtmlRecibo(snapshot)).toThrow(/tipo sin contemplar/);
+      expect(() => generarHtmlRecibo(snapshot)).toThrow(/retencion_judicial/);
+    });
+  });
 });

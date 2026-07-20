@@ -55,6 +55,31 @@ describe('calcularTotalesEmpleado', () => {
     expect(totales.costoLaboralTotal).toBe(1350);
   });
 
+  it('rechaza en runtime un tipo no contemplado (guarda de exhaustividad, ver clasificacion-concepto.ts)', () => {
+    // `ClasificacionConcepto.create` ya impide esto en código normal (valida
+    // contra TIPOS_CONCEPTO) — el cast bypasea esa validación a propósito
+    // para simular un tipo nuevo que se haya colado igual (ej. una entidad
+    // hidratada por otro camino), y probar que la guarda de `default: never`
+    // de calcularTotalesEmpleado también frena en runtime, no solo en
+    // compilación.
+    contador += 1;
+    const filaConTipoFuturo = ImportacionFila.create({
+      id: `fila-${contador}`,
+      numeroFila: contador + 1,
+      cuil: '27309876542',
+      nombre: 'Juan',
+      apellido: 'Perez',
+      concepto: 'Retención judicial',
+      montoOriginal: '100',
+      monto: 100,
+      valida: true,
+      errorMensaje: null,
+      clasificacion: { tipo: 'retencion_judicial', categoriaContribucion: 'otros' } as unknown as ClasificacionConcepto,
+    });
+
+    expect(() => calcularTotalesEmpleado([filaConTipoFuturo])).toThrow(/sin contemplar/);
+  });
+
   it('ignora filas sin clasificar', () => {
     const totales = calcularTotalesEmpleado([filaClasificada('remunerativo', 1000), filaSinClasificar(500)]);
 

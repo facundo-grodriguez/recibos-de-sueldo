@@ -1,5 +1,14 @@
 import { DomainError } from '../errors/domain-error';
 
+// Regla del proyecto (ADR-069): agregar un tipo acá NO es un cambio local.
+// Impacta al menos estos 2 lugares, ambos con una guarda que rompe a
+// propósito si no se actualizan (nunca confiar en acordarse solo):
+// - calcular-totales-empleado.ts: switch exhaustivo (`default: never`) — el
+//   build falla en compilación si el tipo nuevo no se suma a un total.
+// - plantilla-recibo.ts: `validarCoberturaCompleta` — la emisión falla en
+//   runtime si el tipo nuevo no queda representado en ninguna tabla.
+// Antes de agregar un tipo, revisar ambos (y cualquier otro lugar que
+// ramifique sobre `tipo` sin pasar por un switch/filtro exhaustivo).
 export const TIPOS_CONCEPTO = [
   'remunerativo',
   'no_remunerativo',

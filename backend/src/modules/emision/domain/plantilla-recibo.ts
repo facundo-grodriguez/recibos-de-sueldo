@@ -1,9 +1,32 @@
+import { DomainError } from '../../../shared/errors/domain-error';
 import { MARGEN_LATERAL_MM, MARGEN_VERTICAL_MM } from './dimensiones-pagina';
 import { formatearMonto } from './formatear-monto';
 import { generarGraficoTortaSvg } from './generar-grafico-torta-svg';
 import { CATEGORIAS_CONTRIBUCION_ORDEN } from './etiquetas-costo-laboral';
 import { NOMBRES_MES } from './nombre-mes';
 import { ReciboSnapshot, ReciboSnapshotConcepto, ReciboSnapshotDetalleCategoria } from './recibo-snapshot';
+
+/**
+ * Guarda de cobertura (a propósito, ver clasificacion-concepto.ts): las 4
+ * tablas del recibo se arman filtrando por `tipo` uno por uno — si el día de
+ * mañana se agrega un TipoConcepto nuevo y alguien olvida sumarlo a alguna de
+ * las 4 tablas, ese concepto desaparecería del documento sin ningún error.
+ * Preferible frenar la emisión con un mensaje claro a emitir un recibo legal
+ * incompleto.
+ */
+function validarCoberturaCompleta(
+  conceptos: ReciboSnapshotConcepto[],
+  grupos: ReciboSnapshotConcepto[][],
+): void {
+  const totalAgrupado = grupos.reduce((suma, grupo) => suma + grupo.length, 0);
+  if (totalAgrupado !== conceptos.length) {
+    const tiposContemplados = new Set(grupos.flat().map((c) => c.tipo));
+    const tiposSinContemplar = [...new Set(conceptos.map((c) => c.tipo).filter((tipo) => !tiposContemplados.has(tipo)))];
+    throw new DomainError(
+      `${conceptos.length - totalAgrupado} concepto(s) con tipo sin contemplar en ninguna tabla del recibo: ${tiposSinContemplar.join(', ')}`,
+    );
+  }
+}
 
 // Los datos vienen de archivos y formularios cargados por el usuario — nunca
 // se interpolan crudos en el HTML que Puppeteer va a renderizar.
@@ -144,6 +167,7 @@ export function generarHtmlRecibo(snapshot: ReciboSnapshot): string {
   const noRemunerativos = conceptos.filter((c) => c.tipo === 'no_remunerativo');
   const deducciones = conceptos.filter((c) => c.tipo === 'deduccion');
   const contribuciones = conceptos.filter((c) => c.tipo === 'contribucion_patronal');
+  validarCoberturaCompleta(conceptos, [remunerativosPuros, noRemunerativos, deducciones, contribuciones]);
   const mostrarCalculo = conceptos.some((c) => c.unidad !== null || c.base !== null);
 
   const contribucionesPorCategoria = new Map<string, ReciboSnapshotConcepto[]>();

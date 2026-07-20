@@ -2,6 +2,21 @@
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/). Este proyecto aún no tiene versiones publicadas (pre-release).
 
+## [Unreleased] — Guardas de exhaustividad: un tipo de concepto nuevo ya no puede desaparecer en silencio
+
+Antes de cerrar el cambio anterior, se verificó (a pedido explícito) que no existan otros conceptos, actuales o futuros, que puedan quedar fuera del costo laboral o del recibo por una regla similar a la de "Ganancias". Ver addendum de ADR-069 en `DECISIONS.md`.
+
+### Agregado
+- **`calcularTotalesEmpleado`**: guarda de exhaustividad de TypeScript (`default: never`) en el switch por tipo. Agregar un `TipoConcepto` nuevo sin actualizar este cálculo ahora **rompe la compilación**, en vez de excluirlo en silencio de bruto/deducciones/contribuciones/neto/costo laboral total. Verificado deliberadamente (se agregó un tipo temporal, se confirmó el error, se revirtió).
+- **`plantilla-recibo.ts`**: `validarCoberturaCompleta` — si algún concepto del snapshot no queda representado en ninguna de las 4 tablas del recibo, la emisión falla con un error claro en vez de imprimir un documento legal incompleto.
+- Comentario en `TIPOS_CONCEPTO` (fuente única de los tipos) señalando ambos lugares a revisar antes de agregar un tipo nuevo.
+
+### Decidido, sin implementar
+La migración de backfill de deducciones (cambio anterior) sigue sin auditar en `audit_log`: es una migración técnica de compatibilidad, afectó 0 filas reales, y agregar ese código no se justifica para un caso histórico inexistente. Cualquier cambio de clasificación real (de sistema o de usuario) ya queda auditado por el flujo normal, sin cambios.
+
+### Verificado
+`tsc` y suite completa en verde (backend 223 tests, 2 nuevos que fuerzan cada guarda con un tipo inválido/no contemplado).
+
 ## [Unreleased] — `categoriaContribucion` obligatoria también para deducciones: el gráfico cierra el 100% por definición del modelo
 
 Resuelve el gap señalado como "Pendiente" en el cambio anterior (ADR-068): una deducción sin categoría quedaba fuera del gráfico de torta. Ver ADR-069 en `DECISIONS.md`.
