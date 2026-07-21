@@ -2,6 +2,119 @@
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/). Este proyecto aún no tiene versiones publicadas (pre-release).
 
+## [Unreleased] — Ciclo de vida del empleado y de la relación laboral (documento de dominio)
+
+Ver ADR-079 en `DECISIONS.md`. Documento hermano de la Constitución de datos del empleado (ADR-077), disparado por un caso real: un empleado inactivo cuyo CUIL vuelve a aparecer en una importación se saltea en silencio al emitir recibos, sin ningún aviso.
+
+### Agregado
+- `docs/ciclo-vida-empleado.md`: dos ciclos de vida distintos (persona / relación laboral), hoy superpuestos en la misma entidad `Empleado`. Tres decisiones de dominio: (1) reimportar el CUIL de un inactivo avisa, no reactiva solo; (2) el estado activo/inactivo pertenece a la relación laboral, no a la persona; (3) los reingresos alcanzan con reactivar el mismo registro, sin modelar tramos.
+- `docs/constitucion-datos-empleado.md` §8 actualizado: ya no describe el ciclo de vida como pendiente, apunta al documento nuevo.
+
+### Pendiente (ciclos de código futuros, no implementados acá)
+Aviso al reimportar un CUIL inactivo (extensión de `reconocerEmpleado`, ADR-078); Legajo como identificador secundario (ya pendiente desde ADR-078).
+
+## [Unreleased] — Empleados: la lista no se actualizaba tras confirmar una importación
+
+### Corregido
+- `useConfirmarImportacion` (`importacion/queries.ts`): invalidaba la caché de la importación y de los conceptos sin mapear, pero no la de `empleados` — `confirmarImportacion` puede dar de alta empleados nuevos (`crearEmpleadosFaltantes`), así que la pantalla de Empleados quedaba con la lista vieja hasta un refresco manual. Se agregó la invalidación de `empleadosKey`, mismo patrón que ya usan `useCrearEmpleado`/`useActualizarEmpleado`/`useCambiarEstadoEmpleado`.
+
+### Verificado
+`tsc`/51 tests frontend en verde.
+
+## [Unreleased] — Reconocimiento de empleado: primer slice, por CUIL, en la importación
+
+Ver ADR-078 en `DECISIONS.md`. Materializa el principio de ADR-077 "pedir una sola vez la información que ya conoce el sistema": si una fila del Excel trae el CUIL de un empleado ya registrado sin nombre/apellido, se completan solos.
+
+### Agregado
+- `empleados/domain/reconocer-empleado.ts`: servicio de dominio puro, agnóstico del origen (`reconocerEmpleado`, `indexarEmpleadosConocidos`, `normalizarCuil`). Completa nombre/apellido faltantes desde un empleado ya conocido de la empresa; si el origen trae un valor distinto al registrado, nunca lo pisa — solo avisa con una corrección informativa (mismo canal ya usado por Opción B, ADR-072).
+- Integrado en `ImportarArchivoUseCase`, antes de `validarFilaImportacion` (que no cambia). Una sola consulta por CUIL únicos del archivo.
+
+### Verificado
+`tsc`/240 tests backend en verde (10 nuevos). Verificación real en navegador: fila con solo CUIL de un empleado registrado se completó sola, mostrando "Nombre y apellido completados desde el empleado ya registrado"; una fila con CUIL nuevo no generó ninguna corrección. Confirmado que la importación sigue sin crear empleados (eso es exclusivo de `confirmarImportacion`).
+
+### Pendiente (slices futuros)
+Legajo como identificador secundario (requiere extender `FilaCanonica`); reutilizar el mismo servicio desde `confirmar-importacion` y la futura carga asistida.
+
+## [Unreleased] — Pantalla de revisión: hueco de layout corregido + estado de negocio consolidado en cada tarjeta
+
+Ver ADR-076 en `DECISIONS.md`.
+
+### Corregido
+- `BarraLateralNavegacion`: usaba una altura fija (`h="calc(100vh - 200px)"`) en vez de una altura máxima (`mah`) — el `Grid` estiraba la columna principal a esa misma altura fija aunque estuviera todo colapsado, dejando un hueco vacío grande antes de la sección de Validación. Confirmado con medición real en navegador (243px de hueco), no solo a ojo.
+
+### Cambiado
+- Cada tarjeta de empleado (`GrupoEmpleado`) ahora muestra también su estado de negocio (OK / Advertencia / Con error) — solo una vez que la importación está `confirmada`, nunca durante la corrección línea por línea (`previsualizada`), respetando la separación ya fijada en ADR-073.
+- La tabla de "Validación" (una fila por empleado, la mayoría solo diciendo "OK") se eliminó — esa información ya se ve en cada tarjeta. Se conserva la alerta de errores globales no atados a ningún empleado (ej. conceptos sin clasificar), que puede seguir bloqueando la emisión.
+- Orden de los totales por empleado: Costo laboral, Bruto, Neto (antes Bruto, Neto, Costo laboral).
+
+### Verificado
+`tsc`/lint/51 tests frontend en verde. Verificación real en navegador: importación confirmada (badge OK visible, sin tabla de Validación, sin hueco de layout) e importación de prueba en `previsualizada` (confirmado que el badge de estado de negocio no aparece), datos de prueba borrados al terminar.
+
+## [Unreleased] — Selector de fechas: import de CSS faltante + mejor navegación para fechas antiguas
+
+Ver ADR-075 en `DECISIONS.md`. No se reemplazó el componente (`DatePickerInput` de `@mantine/dates`) — la causa raíz del reclamo ("flechas demasiado grandes") era un CSS que nunca se importaba.
+
+### Corregido
+- `main.tsx`: faltaba `import '@mantine/dates/styles.css'` — sin él, los controles de navegación del calendario perdían las reglas de tamaño y se veían grandes/desalineados.
+
+### Agregado
+- `defaultLevel="decade"` en el campo de fecha de ingreso (`EditarEmpleadoModal.tsx`) — el calendario abre directo en la grilla de años, sin navegar mes a mes para llegar a una fecha antigua.
+- `valueFormat="DD/MM/YYYY"` en los 3 campos de fecha de la app (antes mostraban el formato inglés por defecto de Mantine).
+
+### Descartado
+- Migrar a librerías externas o al componente hermano `DateInput`: ninguna aporta algo que `DatePickerInput` ya configurado no resuelva, y `DateInput` no soporta `enableKeyboardNavigation` en esta versión.
+- `enableKeyboardNavigation`: aunque el tipo lo declara para `DatePickerInput`, la implementación real de esta versión de Mantine (9.4.1) nunca lo lee — generaba un warning real de React (prop llegando cruda al DOM). Sacado tras verificar en navegador.
+
+### Verificado
+`tsc`/lint/51 tests frontend en verde. Verificación visual en navegador real: antes/después de las flechas, apertura en década, fecha antigua (15/05/2020) mostrada como "15/05/2020", sin errores en consola.
+
+## [Unreleased] — Antigüedad: fecha de referencia correcta + visible en el listado de empleados
+
+Ver ADR-074 en `DECISIONS.md`. La antigüedad ya se calculaba (nunca se almacenaba/importaba, ver ADR-071) — esta tarea corrige un bug real de consistencia y cierra un gap de visibilidad, sin cambiar el modelo.
+
+### Corregido
+- `EmitirRecibosUseCase`/`ReemitirReciboUseCase`: la antigüedad del recibo se calculaba con la fecha real de emisión (`new Date()`), no con la fecha de pago del período liquidado — un recibo emitido tarde o reemitido meses después mostraba una antigüedad inconsistente con el resto del documento. Ahora usa `datosEmision.fechaPago`.
+
+### Agregado
+- Columna "Antigüedad" en el listado de empleados (`EmpleadosPage.tsx`), calculada al momento (hoy) — antes solo se podía ver dentro de un PDF ya emitido. `modules/empleados/calcularAntiguedad.ts`, réplica exacta de la función del backend.
+
+### Verificado
+`tsc`/lint/tests en verde (backend 230, frontend 51 — 7 nuevos). El test de `emitir-recibos.use-case.spec.ts` que afirmaba un valor exacto de antigüedad dependía del reloj real de la máquina al correr (`new Date()` sin fijar); con el fix pasa a depender de una fecha fija de la fixture — quedó determinista de una vez por todas. Verificación real en navegador contra Postgres real (empleado de demo con fecha de ingreso real, antigüedad exacta confirmada, dato revertido al terminar).
+
+## [Unreleased] — Rediseño de la pantalla de revisión de importación (agrupada, buscable, navegable)
+
+Ver ADR-073 en `DECISIONS.md` para el análisis de UX completo y las decisiones de diseño. 100% frontend, sin cambios de backend/dominio/validación.
+
+### Agregado
+- Nuevo submódulo `frontend/src/modules/importacion/revision/`: agrupación de filas por empleado (orden original del archivo, grupo especial "Sin identificar" para filas sin CUIL utilizable), buscador global (nombre/apellido/CUIL/concepto), filtro por estado (error/advertencia/sin clasificar, sobre el empleado completo, no por fila), barra de resumen sticky con progreso y conteos clickeables como atajos de filtro, barra lateral de navegación (mismo conjunto filtrado, click salta y expande), botón flotante "siguiente/anterior error" con scroll y resaltado, "expandir/contraer todos".
+- Header de cada grupo con Bruto/Neto/Costo laboral (dato objetivo, `GET .../validacion` ya existente, llamado también en `previsualizada`, mostrando solo `.totales` — nunca `.errores`/`.advertencias`, que siguen siendo exclusivos del Paso 2 de análisis de negocio, sin tocar). Totales parciales rotulados explícitamente cuando el empleado tiene errores sin corregir.
+
+### Corregido (encontrado por verificación real con Playwright, no por `tsc` ni tests)
+- `Collapse` de Mantine usaba la prop `in` (convención de otra librería) en vez de `expanded` — el colapso nunca funcionaba de verdad y generaba un warning de React en consola por filtrar una prop desconocida al DOM.
+- El botón flotante de navegación de errores usaba `position: sticky` y terminaba tapando el encabezado de la página en vez de quedar anclado abajo — corregido a `position: fixed`.
+
+### Verificado
+`tsc`/lint/44 tests frontend en verde (12 nuevos). Verificación end-to-end real con Playwright MCP contra backend y Postgres reales, con un fixture de 4 empleados que ejercita cada caso (corrección de formato, herencia de Opción B, CUIL inválido sin nombre, monto inválido) — ver ADR-073 para el detalle completo.
+
+## [Unreleased] — Opción B: herencia de CUIL/nombre/apellido en filas repetidas del Excel de importación
+
+Reduce la fricción de repetir CUIL, nombre y apellido en cada concepto de un mismo empleado dentro del Excel de importación. Ver ADR-072 en `DECISIONS.md` (dos puertas de entrada según perfil de cliente; el Excel como adaptador de transición) para el contexto estratégico completo.
+
+### Agregado
+- `ConectorImportacion.parse()` ahora devuelve `{ filas: FilaCanonica[], correcciones: CorreccionAdaptador[] }` en vez de solo `FilaCanonica[]` — un canal separado para que un adaptador reporte observaciones sobre su propio proceso de traducción (ej. una herencia), sin que `FilaCanonica` deje de ser agnóstica del origen (regla explícita de ADR-072: el contrato mínimo nunca contiene información sobre *cómo* un adaptador llegó a un valor).
+- `ExcelConectorImportacion`: si una fila trae CUIL, nombre y apellido los 3 vacíos juntos, los hereda de la última fila que sí los traía completos, y reporta la herencia como una corrección (`"CUIL, nombre y apellido heredados de la fila N"`). Si falta solo alguno de los 3, no hereda nada — sigue siendo un dato faltante real.
+- `ImportarArchivoUseCase`: fusiona las correcciones del adaptador con las que ya genera `validarFilaImportacion` (Fase 6), por número de fila, antes de persistir cada `ImportacionFila` — mismo campo `correcciones: string[]` que ya se mostraba en la previsualización, ahora también alimentado por el adaptador.
+- `docs/contrato-excel-oficial-importacion.md`: nueva viñeta en "Tolerancia del parser" documentando la herencia.
+
+### Actualizado (2026-07-20, detectado por el usuario un rato después de cerrar lo de arriba)
+- `app/frontend/public/plantilla-excel-oficial-importacion-v1.xlsx` (el ejemplo descargable desde el modal de importar) seguía mostrando el patrón viejo: 2 filas del mismo empleado con CUIL/nombre/apellido repetidos a mano en ambas — justo el caso que la herencia resuelve, sin actualizar. Regenerada para que la segunda fila los deje vacíos, mostrando la herencia en acción. Verificado pasándola por `ExcelConectorImportacion`/`validarFilaImportacion` reales antes de sobrescribir el archivo: ambas filas quedan válidas, con la corrección `"CUIL, nombre y apellido heredados de la fila 2"`.
+
+### Diseño descartado
+La primera versión proponía agregar `heredadoDeFila?: number` directamente a `FilaCanonica`. Se descartó explícitamente (a pedido del usuario) por violar la separación de responsabilidades: un dato sobre cómo el adaptador obtuvo un valor no es un dato de dominio. Rediseñado con el canal de correcciones separado descripto arriba.
+
+### Verificado
+`tsc` y suite completa en verde (backend 230 tests — 7 nuevos: 4 casos de herencia en `ExcelConectorImportacion`, 3 de fusión de correcciones en `ImportarArchivoUseCase`).
+
 ## [Unreleased] — Mejora visual del PDF (sin cambios de cálculo ni de lógica de negocio)
 
 Pasada puramente de CSS/HTML sobre `plantilla-recibo.ts`, a pedido del usuario. Ver ADR-070 en `DECISIONS.md`.

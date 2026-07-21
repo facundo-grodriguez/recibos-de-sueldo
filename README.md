@@ -192,8 +192,9 @@ La plataforma actúa como **repositorio técnico** (versiones, historial, trazab
 - CUIL con guiones/puntos/espacios → se limpia a solo dígitos.
 - Monto con coma decimal (`1500,50`) → se interpreta como separador decimal.
 - Nombre/apellido/concepto con espacios de más → se recortan.
+- CUIL, nombre y apellido los 3 vacíos juntos → se heredan de la última fila que sí los traía completos (ADR-072, opción B) — evita repetirlos en cada concepto de un mismo empleado. Si falta solo alguno de los 3, no se hereda nada: sigue siendo un dato faltante real.
 
-La respuesta de la importación (`GET`/`POST` de más arriba) incluye `correcciones` por fila y `filasConCorrecciones` en el resumen — mismo cálculo al vuelo que `filasValidas`/`filasConError`, sin persistencia extra.
+La respuesta de la importación (`GET`/`POST` de más arriba) incluye `correcciones` por fila y `filasConCorrecciones` en el resumen — mismo cálculo al vuelo que `filasValidas`/`filasConError`, sin persistencia extra. Desde ADR-072, este campo también recibe observaciones del propio adaptador (como la herencia) — nunca viajan dentro del contrato `FilaCanonica`, que sigue siendo agnóstico del origen.
 
 **Corregir una fila sin re-subir el archivo:**
 
@@ -209,6 +210,7 @@ Hecho hasta ahora:
 - **Fase C** — empleados: alta, edición, baja/reactivación (reversible, nunca un delete real), búsqueda y filtro por estado (client-side).
 - **Fase D** — importación: subida de archivo (Excel Oficial de Importación v1 + año/mes), listado de importaciones, detalle por filas (estado, montos, correcciones automáticas) y mapeo de conceptos pendientes desde el propio detalle.
 - **Fase E** — corrección y confirmación: modal de corrección por fila (sin re-subir el archivo), revalidación reflejada al instante en la tabla, botón Confirmar habilitado solo con 0 filas con error.
+- **Pantalla de revisión rediseñada (ADR-073, post-Fase E)**: la tabla plana de filas se reemplazó por una vista agrupada por empleado (orden original del archivo, no alfabético), con encabezado por grupo (conceptos/válidos/correcciones/errores + Bruto/Neto/Costo laboral — dato objetivo, rotulado "parcial" si el empleado tiene errores sin corregir; nunca las advertencias de negocio, que siguen siendo exclusivas del panel de validación posterior a confirmar), expandir/contraer por grupo (auto-expandido si tiene error) y todos a la vez, buscador global (nombre/apellido/CUIL/concepto), filtro por estado sobre el empleado completo (no por fila), barra lateral de navegación y botón flotante de siguiente/anterior error. La validación sigue siendo estrictamente línea por línea — el rediseño es 100% de presentación, sin cambios de backend/dominio.
 - **Fase F** — validación y emisión: datos de emisión (fecha/lugar de pago y de cargas sociales), panel de validación (errores/advertencias por empleado), botón Emitir recibos (habilitado solo con datos completos y sin errores de validación — excluye automáticamente a los empleados dados de baja), tabla de recibos emitidos con descarga individual de PDF.
 - **Fase G** — repositorio técnico (cierra el plan de 7 sub-fases): registro de usuario con checkbox de T&C/Acuerdo de Tratamiento de Datos (`/register`, antes no existía ninguna pantalla de registro), historial de recibos cruzando importaciones con filtro por empleado (`/empresas/:id/recibos`), anulación (con motivo) y reemisión, descarga por lote (ZIP), y auditoría por recibo (línea de tiempo de emisión/anulación/reemisión).
 
