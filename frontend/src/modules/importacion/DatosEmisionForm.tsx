@@ -55,13 +55,19 @@ function Formulario({ empresaId, importacion }: DatosEmisionFormProps) {
       <Stack gap="sm">
         <Title order={4}>Datos de emisión</Title>
         <Group grow>
-          <DatePickerInput label="Fecha de pago" clearable {...form.getInputProps('fechaPago')} />
+          <DatePickerInput
+            label="Fecha de pago"
+            clearable
+            valueFormat="DD/MM/YYYY"
+            {...form.getInputProps('fechaPago')}
+          />
           <TextInput label="Lugar de pago" {...form.getInputProps('lugarPago')} />
         </Group>
         <Group grow>
           <DatePickerInput
             label="Fecha de pago de cargas sociales"
             clearable
+            valueFormat="DD/MM/YYYY"
             {...form.getInputProps('fechaPagoCargasSociales')}
           />
           <TextInput label="Lugar de pago de cargas sociales" {...form.getInputProps('lugarPagoCargasSociales')} />

@@ -67,7 +67,13 @@ function Formulario({
     <form onSubmit={form.onSubmit(handleSubmit)}>
       <Stack gap="sm">
         <TextInput label="Categoría" {...form.getInputProps('categoria')} />
-        <DatePickerInput label="Fecha de ingreso" clearable {...form.getInputProps('fechaIngreso')} />
+        <DatePickerInput
+          label="Fecha de ingreso"
+          clearable
+          valueFormat="DD/MM/YYYY"
+          defaultLevel="decade"
+          {...form.getInputProps('fechaIngreso')}
+        />
         <TextInput label="Legajo" {...form.getInputProps('legajo')} />
         <TextInput label="Banco" {...form.getInputProps('banco')} />
         <Group justify="flex-end" mt="sm">
