@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '../../shared/auth/AuthContext';
+import { empleadosKey } from '../empleados/queries';
 import { conceptosSinMapearKey } from '../mapeo/queries';
 import {
   actualizarDatosEmision,
@@ -83,6 +84,8 @@ export function useConfirmarImportacion(empresaId: string, importacionId: string
       void queryClient.invalidateQueries({ queryKey: importacionesKey(empresaId) });
       // Confirmar dispara auto-clasificación (Fase 2): puede cambiar qué conceptos siguen pendientes a nivel empresa.
       void queryClient.invalidateQueries({ queryKey: conceptosSinMapearKey(empresaId) });
+      // Confirmar puede dar de alta empleados nuevos (crearEmpleadosFaltantes) que aún no están en la lista cacheada.
+      void queryClient.invalidateQueries({ queryKey: empleadosKey(empresaId) });
     },
   });
 }

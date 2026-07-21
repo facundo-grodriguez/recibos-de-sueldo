@@ -3,7 +3,7 @@ import { useAuth } from '../../shared/auth/AuthContext';
 import { actualizarEmpleado, cambiarEstadoEmpleado, crearEmpleado, listarEmpleados, type EstadoEmpleado } from './api';
 import type { CrearEmpleadoFormValues, EditarEmpleadoFormValues } from './schema';
 
-function empleadosKey(empresaId: string) {
+export function empleadosKey(empresaId: string) {
   return ['empleados', empresaId] as const;
 }
 
