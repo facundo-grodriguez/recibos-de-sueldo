@@ -10,7 +10,7 @@ interface BarraLateralNavegacionProps {
 
 function IconoEstado({ tieneError, tieneAdvertencia }: { tieneError: boolean; tieneAdvertencia: boolean }) {
   if (tieneError) return <IconX size={14} color="var(--mantine-color-red-6)" />;
-  if (tieneAdvertencia) return <IconAlertTriangle size={14} color="var(--mantine-color-blue-6)" />;
+  if (tieneAdvertencia) return <IconAlertTriangle size={14} color="var(--mantine-color-yellow-7)" />;
   return <IconCheck size={14} color="var(--mantine-color-green-6)" />;
 }
 

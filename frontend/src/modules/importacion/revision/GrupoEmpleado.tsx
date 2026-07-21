@@ -61,7 +61,7 @@ export const GrupoEmpleado = forwardRef<HTMLDivElement, GrupoEmpleadoProps>(func
               ✔ {resumen.validos}
             </Badge>
             {resumen.tieneAdvertencia && (
-              <Badge variant="light" color="blue" leftSection={<IconAlertTriangle size={12} />}>
+              <Badge variant="light" color="yellow" leftSection={<IconAlertTriangle size={12} />}>
                 {resumen.correcciones}
               </Badge>
             )}
@@ -90,7 +90,7 @@ export const GrupoEmpleado = forwardRef<HTMLDivElement, GrupoEmpleadoProps>(func
               </Text>
             ))}
             {estadoNegocio?.advertencias.map((mensaje) => (
-              <Text key={mensaje} size="xs" c="orange">
+              <Text key={mensaje} size="xs" c="yellow.7">
                 {mensaje}
               </Text>
             ))}
@@ -123,7 +123,7 @@ export const GrupoEmpleado = forwardRef<HTMLDivElement, GrupoEmpleadoProps>(func
                         </Text>
                       )}
                       {fila.correcciones.length > 0 && (
-                        <Text size="xs" c="blue">
+                        <Text size="xs" c="yellow.7">
                           {fila.correcciones.join('; ')}
                         </Text>
                       )}
@@ -167,7 +167,7 @@ function BadgeEstadoNegocio({ estadoNegocio }: { estadoNegocio: EstadoNegocioEmp
   }
   if (estadoNegocio.advertencias.length > 0) {
     return (
-      <Badge variant="light" color="orange" leftSection={<IconAlertTriangle size={12} />}>
+      <Badge variant="light" color="yellow" leftSection={<IconAlertTriangle size={12} />}>
         Advertencia
       </Badge>
     );

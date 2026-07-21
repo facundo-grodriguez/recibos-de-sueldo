@@ -101,7 +101,7 @@ export function BarraResumenSticky({
             <ContadorClickeable
               etiqueta="Con corrección automática"
               valor={importacion.filasConCorrecciones}
-              color="blue"
+              color="yellow"
               filtroAsociado="advertencia"
               filtroActivo={filtro}
               onClick={onFiltroChange}
