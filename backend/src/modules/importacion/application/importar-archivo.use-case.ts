@@ -1,10 +1,17 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { DomainError } from '../../../shared/errors/domain-error';
 import { NotFoundError } from '../../../shared/errors/not-found-error';
+import { EMPLEADO_REPOSITORY, EmpleadoRepository } from '../../empleados/domain/empleado.repository';
+import {
+  indexarEmpleadosConocidos,
+  normalizarCuil,
+  reconocerEmpleado,
+} from '../../empleados/domain/reconocer-empleado';
 import { EMPRESA_REPOSITORY, EmpresaRepository } from '../../empresas/domain/empresa.repository';
 import {
   CONECTOR_IMPORTACION_EXCEL,
   ConectorImportacion,
+  CorreccionAdaptador,
   EXTENSION_ARCHIVO_OFICIAL,
 } from '../domain/conector-importacion';
 import { Importacion } from '../domain/importacion.entity';
@@ -30,6 +37,7 @@ export class ImportarArchivoUseCase {
     @Inject(EMPRESA_REPOSITORY) private readonly empresaRepository: EmpresaRepository,
     @Inject(IMPORTACION_REPOSITORY) private readonly importacionRepository: ImportacionRepository,
     @Inject(CONECTOR_IMPORTACION_EXCEL) private readonly conectorExcel: ConectorImportacion,
+    @Inject(EMPLEADO_REPOSITORY) private readonly empleadoRepository: EmpleadoRepository,
   ) {}
 
   async execute(input: ImportarArchivoInput): Promise<Importacion> {
@@ -39,9 +47,36 @@ export class ImportarArchivoUseCase {
     }
 
     this.validarExtensionOficial(input.nombreArchivo);
-    const filasCanonicas = await this.conectorExcel.parse(input.contenido);
+    const { filas: filasCanonicas, correcciones: correccionesAdaptador } = await this.conectorExcel.parse(
+      input.contenido,
+    );
+    const correccionesAdaptadorPorFila = this.agruparCorreccionesPorFila(correccionesAdaptador);
+
+    // Reconocimiento de empleado (ADR-077/078): una sola consulta trae los empleados ya
+    // registrados de la empresa que coinciden con algún CUIL del archivo, para completar
+    // nombre/apellido de las filas que ya los tienen guardados — "pedir una sola vez".
+    const cuilsDelArchivo = [...new Set(filasCanonicas.map((fila) => normalizarCuil(fila.cuil)))].filter(
+      (cuil) => cuil.length > 0,
+    );
+    const empleadosConocidos =
+      cuilsDelArchivo.length > 0
+        ? await this.empleadoRepository.findAllByCuilsAndEmpresa(empresa.id, cuilsDelArchivo)
+        : [];
+    const indiceEmpleados = indexarEmpleadosConocidos(
+      empleadosConocidos.map((empleado) => ({ cuil: empleado.cuil.value, nombre: empleado.nombre, apellido: empleado.apellido })),
+    );
+
     const filas: CrearImportacionFilaData[] = filasCanonicas.map((fila) => {
-      const resultado = validarFilaImportacion(fila);
+      const reconocimiento = reconocerEmpleado(
+        { cuil: fila.cuil, nombre: fila.nombre, apellido: fila.apellido },
+        indiceEmpleados,
+      );
+      const filaReconocida = { ...fila, ...reconocimiento.identidad };
+      const resultado = validarFilaImportacion(filaReconocida);
+      const correccionesDeEstaFila = [
+        ...(correccionesAdaptadorPorFila.get(fila.numeroFila) ?? []),
+        ...reconocimiento.correcciones,
+      ];
 
       if (resultado.valida) {
         return {
@@ -56,20 +91,21 @@ export class ImportarArchivoUseCase {
           errorMensaje: null,
           unidad: resultado.datos.unidad,
           base: resultado.datos.base,
-          correcciones: resultado.datos.correcciones,
+          correcciones: [...correccionesDeEstaFila, ...resultado.datos.correcciones],
         };
       }
 
       return {
         numeroFila: fila.numeroFila,
-        cuil: fila.cuil,
-        nombre: fila.nombre,
-        apellido: fila.apellido,
-        concepto: fila.concepto,
+        cuil: filaReconocida.cuil,
+        nombre: filaReconocida.nombre,
+        apellido: filaReconocida.apellido,
+        concepto: filaReconocida.concepto,
         montoOriginal: fila.monto,
         monto: null,
         valida: false,
         errorMensaje: resultado.error,
+        correcciones: correccionesDeEstaFila,
       };
     });
 
@@ -81,6 +117,17 @@ export class ImportarArchivoUseCase {
       nombreArchivo: input.nombreArchivo,
       filas,
     });
+  }
+
+  /** Agrupa por fila las correcciones que reportó el adaptador (ADR-072), para fusionarlas con las de validación. */
+  private agruparCorreccionesPorFila(correcciones: CorreccionAdaptador[]): Map<number, string[]> {
+    const porFila = new Map<number, string[]>();
+    for (const correccion of correcciones) {
+      const existentes = porFila.get(correccion.numeroFila) ?? [];
+      existentes.push(correccion.mensaje);
+      porFila.set(correccion.numeroFila, existentes);
+    }
+    return porFila;
   }
 
   /** Único formato oficial de entrada (ver ConectorImportacion) — rechaza cualquier otro con un mensaje claro. */
