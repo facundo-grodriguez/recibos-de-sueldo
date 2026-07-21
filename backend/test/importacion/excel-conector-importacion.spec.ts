@@ -26,7 +26,7 @@ describe('ExcelConectorImportacion', () => {
       ],
     );
 
-    const filas = await conector.parse(buffer);
+    const { filas, correcciones } = await conector.parse(buffer);
 
     expect(filas).toHaveLength(2);
     expect(filas[0]).toEqual({
@@ -38,6 +38,7 @@ describe('ExcelConectorImportacion', () => {
       monto: '1500.5',
     });
     expect(filas[1].numeroFila).toBe(3);
+    expect(correcciones).toEqual([]);
   });
 
   it('rechaza un archivo al que le falta una columna obligatoria', async () => {
@@ -61,7 +62,7 @@ describe('ExcelConectorImportacion', () => {
       [['27309876542', 'Juan', 'Perez', 'Sueldo básico', 1500.5]],
     );
 
-    const filas = await conector.parse(buffer);
+    const { filas } = await conector.parse(buffer);
 
     expect(filas).toHaveLength(1);
     expect(filas[0].cuil).toBe('27309876542');
@@ -73,7 +74,7 @@ describe('ExcelConectorImportacion', () => {
       [[1500.5, 'Sueldo básico', 'Perez', 'Juan', '27309876542']],
     );
 
-    const filas = await conector.parse(buffer);
+    const { filas } = await conector.parse(buffer);
 
     expect(filas).toHaveLength(1);
     expect(filas[0]).toMatchObject({
@@ -95,7 +96,7 @@ describe('ExcelConectorImportacion', () => {
       ],
     );
 
-    const filas = await conector.parse(buffer);
+    const { filas } = await conector.parse(buffer);
 
     expect(filas).toHaveLength(2);
     expect(filas[1].numeroFila).toBe(4);
@@ -103,5 +104,76 @@ describe('ExcelConectorImportacion', () => {
 
   it('rechaza un buffer que no es un Excel válido', async () => {
     await expect(conector.parse(Buffer.from('esto no es un xlsx', 'utf-8'))).rejects.toThrow(DomainError);
+  });
+
+  describe('herencia de CUIL/nombre/apellido en filas repetidas (ADR-072, opción B)', () => {
+    it('hereda CUIL, nombre y apellido de la última fila completa cuando los 3 vienen vacíos', async () => {
+      const buffer = await construirBufferExcel(
+        ['cuil', 'nombre', 'apellido', 'concepto', 'monto'],
+        [
+          ['27309876542', 'Juan', 'Perez', 'Sueldo básico', 1500.5],
+          ['', '', '', 'Antigüedad', 300],
+          ['', '', '', 'Presentismo', 200],
+        ],
+      );
+
+      const { filas, correcciones } = await conector.parse(buffer);
+
+      expect(filas).toHaveLength(3);
+      expect(filas[1]).toMatchObject({ cuil: '27309876542', nombre: 'Juan', apellido: 'Perez' });
+      expect(filas[2]).toMatchObject({ cuil: '27309876542', nombre: 'Juan', apellido: 'Perez' });
+      expect(correcciones).toEqual([
+        { numeroFila: 3, mensaje: 'CUIL, nombre y apellido heredados de la fila 2' },
+        { numeroFila: 4, mensaje: 'CUIL, nombre y apellido heredados de la fila 2' },
+      ]);
+    });
+
+    it('no hereda si solo alguno de los 3 campos viene vacío (sigue siendo un dato faltante real)', async () => {
+      const buffer = await construirBufferExcel(
+        ['cuil', 'nombre', 'apellido', 'concepto', 'monto'],
+        [
+          ['27309876542', 'Juan', 'Perez', 'Sueldo básico', 1500.5],
+          ['', 'Juan', 'Perez', 'Antigüedad', 300],
+        ],
+      );
+
+      const { filas, correcciones } = await conector.parse(buffer);
+
+      expect(filas[1]).toMatchObject({ cuil: '', nombre: 'Juan', apellido: 'Perez' });
+      expect(correcciones).toEqual([]);
+    });
+
+    it('no hereda nada si no hay ninguna fila previa completa (queda vacío, como hoy)', async () => {
+      const buffer = await construirBufferExcel(
+        ['cuil', 'nombre', 'apellido', 'concepto', 'monto'],
+        [['', '', '', 'Sueldo básico', 1500.5]],
+      );
+
+      const { filas, correcciones } = await conector.parse(buffer);
+
+      expect(filas[0]).toMatchObject({ cuil: '', nombre: '', apellido: '' });
+      expect(correcciones).toEqual([]);
+    });
+
+    it('vuelve a heredar de un segundo empleado distinto una vez que aparece una fila completa nueva', async () => {
+      const buffer = await construirBufferExcel(
+        ['cuil', 'nombre', 'apellido', 'concepto', 'monto'],
+        [
+          ['27309876542', 'Juan', 'Perez', 'Sueldo básico', 1500.5],
+          ['', '', '', 'Antigüedad', 300],
+          ['20123456786', 'Ana', 'Gomez', 'Sueldo básico', 1600],
+          ['', '', '', 'Antigüedad', 320],
+        ],
+      );
+
+      const { filas, correcciones } = await conector.parse(buffer);
+
+      expect(filas[1]).toMatchObject({ cuil: '27309876542', nombre: 'Juan', apellido: 'Perez' });
+      expect(filas[3]).toMatchObject({ cuil: '20123456786', nombre: 'Ana', apellido: 'Gomez' });
+      expect(correcciones).toEqual([
+        { numeroFila: 3, mensaje: 'CUIL, nombre y apellido heredados de la fila 2' },
+        { numeroFila: 5, mensaje: 'CUIL, nombre y apellido heredados de la fila 4' },
+      ]);
+    });
   });
 });

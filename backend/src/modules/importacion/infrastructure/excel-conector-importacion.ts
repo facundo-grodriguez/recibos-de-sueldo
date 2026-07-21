@@ -2,8 +2,16 @@ import { Injectable } from '@nestjs/common';
 import ExcelJS from 'exceljs';
 import { DomainError } from '../../../shared/errors/domain-error';
 import { columnasObligatoriasFaltantes, mapearRegistroPorEncabezado } from '../domain/columnas-archivo-importacion';
-import { ConectorImportacion } from '../domain/conector-importacion';
+import { CorreccionAdaptador, ConectorImportacion, ResultadoParseoConector } from '../domain/conector-importacion';
 import { FilaCanonica } from '../domain/fila-canonica';
+
+/** Identidad de la última fila con CUIL/nombre/apellido completos, para heredarla en filas que los repiten vacíos. */
+interface IdentidadPrevia {
+  numeroFila: number;
+  cuil: string;
+  nombre: string;
+  apellido: string;
+}
 
 /** Texto plano de una celda, cubriendo los tipos que exceljs puede devolver (texto enriquecido, fórmulas, fechas). */
 function textoDeCelda(valor: ExcelJS.CellValue): string {
@@ -19,7 +27,7 @@ function textoDeCelda(valor: ExcelJS.CellValue): string {
 
 @Injectable()
 export class ExcelConectorImportacion implements ConectorImportacion {
-  async parse(buffer: Buffer): Promise<FilaCanonica[]> {
+  async parse(buffer: Buffer): Promise<ResultadoParseoConector> {
     const workbook = new ExcelJS.Workbook();
     try {
       // exceljs trae, vía fast-csv, un @types/node@14 anidado cuyo `Buffer`
@@ -53,6 +61,9 @@ export class ExcelConectorImportacion implements ConectorImportacion {
     }
 
     const filas: FilaCanonica[] = [];
+    const correcciones: CorreccionAdaptador[] = [];
+    let identidadPrevia: IdentidadPrevia | undefined;
+
     for (let numeroFila = 2; numeroFila <= hoja.rowCount; numeroFila++) {
       const filaExcel = hoja.getRow(numeroFila);
       const registroCrudo: Record<string, string> = {};
@@ -72,11 +83,32 @@ export class ExcelConectorImportacion implements ConectorImportacion {
       if (!tieneAlgunValor) continue;
 
       const registro = mapearRegistroPorEncabezado(registroCrudo);
+      let cuil = registro.cuil ?? '';
+      let nombre = registro.nombre ?? '';
+      let apellido = registro.apellido ?? '';
+
+      // Tolerancia del parser (no cambia el contrato): si CUIL, nombre y
+      // apellido vienen los 3 vacíos juntos, se heredan de la última fila que
+      // sí los traía completos — evita repetirlos en cada concepto del mismo
+      // empleado. Nunca se hereda si solo alguno de los 3 falta: eso sigue
+      // siendo un dato faltante real, no una repetición intencional.
+      if (!cuil.trim() && !nombre.trim() && !apellido.trim() && identidadPrevia) {
+        cuil = identidadPrevia.cuil;
+        nombre = identidadPrevia.nombre;
+        apellido = identidadPrevia.apellido;
+        correcciones.push({
+          numeroFila,
+          mensaje: `CUIL, nombre y apellido heredados de la fila ${identidadPrevia.numeroFila}`,
+        });
+      } else if (cuil.trim() && nombre.trim() && apellido.trim()) {
+        identidadPrevia = { numeroFila, cuil, nombre, apellido };
+      }
+
       filas.push({
         numeroFila,
-        cuil: registro.cuil ?? '',
-        nombre: registro.nombre ?? '',
-        apellido: registro.apellido ?? '',
+        cuil,
+        nombre,
+        apellido,
         concepto: registro.concepto ?? '',
         monto: registro.monto ?? '',
         unidad: registro.unidad,
@@ -88,6 +120,6 @@ export class ExcelConectorImportacion implements ConectorImportacion {
       throw new DomainError('El archivo no contiene filas para importar');
     }
 
-    return filas;
+    return { filas, correcciones };
   }
 }
