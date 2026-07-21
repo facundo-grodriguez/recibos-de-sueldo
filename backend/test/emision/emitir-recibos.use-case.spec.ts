@@ -332,7 +332,10 @@ describe('EmitirRecibosUseCase', () => {
       neto: 1000,
       costoLaboralTotal: 1050,
     });
-    expect(recibo.snapshot.empleado.antiguedad).toBe('2 años y 6 meses');
+    // Antigüedad calculada a la fecha de pago del período (2026-07-05), no al momento real de
+    // correr el test — de fechaIngreso 2024-01-10 a 2026-07-05: 2 años y 5 meses (el día 5 es
+    // anterior al día 10 de ingreso, así que el mes en curso todavía no se cuenta completo).
+    expect(recibo.snapshot.empleado.antiguedad).toBe('2 años y 5 meses');
     expect(generadorPdf.snapshotsRecibidos).toHaveLength(1);
     expect(almacenamiento.guardados).toEqual([
       { empresaId: EMPRESA_ID, importacionId: IMPORTACION_ID, empleadoId: 'empleado-juan', numero: 1, contenido: expect.any(Buffer) },

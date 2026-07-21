@@ -2,12 +2,20 @@ import { Anchor, Badge, Button, Group, Stack, Switch, Table, Text, TextInput, Ti
 import { IconArrowLeft, IconPlus, IconSearch } from '@tabler/icons-react';
 import { useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router';
+import { parsearFechaLocal } from '../../shared/forms/parsearFechaLocal';
 import { useEmpresa, useEmpresas } from '../empresas/queries';
 import type { Empleado } from './api';
+import { calcularAntiguedad } from './calcularAntiguedad';
 import { CrearEmpleadoModal } from './CrearEmpleadoModal';
 import { EditarEmpleadoModal } from './EditarEmpleadoModal';
 import { filtrarEmpleados } from './filtrarEmpleados';
 import { useCambiarEstadoEmpleado, useEmpleados } from './queries';
+
+/** '—' si no hay fecha de ingreso cargada — nunca se inventa (mismo criterio que el backend, ADR-071). */
+function antiguedadDeEmpleado(empleado: Empleado): string {
+  if (!empleado.fechaIngreso) return '—';
+  return calcularAntiguedad(parsearFechaLocal(empleado.fechaIngreso), new Date());
+}
 
 export function EmpleadosPage() {
   const { empresaId } = useParams<{ empresaId: string }>();
@@ -78,6 +86,7 @@ export function EmpleadosPage() {
               <Table.Th>Apellido y nombre</Table.Th>
               <Table.Th>CUIL</Table.Th>
               <Table.Th>Categoría</Table.Th>
+              <Table.Th>Antigüedad</Table.Th>
               <Table.Th>Legajo</Table.Th>
               <Table.Th>Banco</Table.Th>
               <Table.Th>Estado</Table.Th>
@@ -92,6 +101,7 @@ export function EmpleadosPage() {
                 </Table.Td>
                 <Table.Td>{empleado.cuil}</Table.Td>
                 <Table.Td>{empleado.categoria ?? '—'}</Table.Td>
+                <Table.Td>{antiguedadDeEmpleado(empleado)}</Table.Td>
                 <Table.Td>{empleado.legajo ?? '—'}</Table.Td>
                 <Table.Td>{empleado.banco ?? '—'}</Table.Td>
                 <Table.Td>

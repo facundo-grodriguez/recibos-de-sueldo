@@ -107,7 +107,11 @@ export class ReemitirReciboUseCase {
       },
       periodo: { anio: importacion.anio, mes: importacion.mes, ...datosEmision },
       filas,
-      fechaReferencia: new Date(),
+      // Mismo criterio que la emisión original (ver EmitirRecibosUseCase): la
+      // antigüedad es "a la fecha de pago del período", no al momento real de
+      // reemitir — un reemplazo meses después no debe mostrar una antigüedad
+      // distinta a la del recibo que reemplaza.
+      fechaReferencia: datosEmision.fechaPago,
     });
 
     const numero = (await this.reciboRepository.contarPorEmpresa(empresa.id)) + 1;

@@ -110,7 +110,6 @@ export class EmitirRecibosUseCase {
     };
 
     const numeroInicial = (await this.reciboRepository.contarPorEmpresa(empresa.id)) + 1;
-    const ahora = new Date();
 
     const filasPorCuil = importacion.agruparFilasPorCuilValido();
     // Una sola consulta para todos los empleados del lote, en vez de un
@@ -143,7 +142,11 @@ export class EmitirRecibosUseCase {
       anio: importacion.anio,
       mes: importacion.mes,
       datosEmision,
-      fechaReferencia: ahora,
+      // La antigüedad se calcula "a la fecha de pago de este período", no al
+      // momento real de hacer clic en Emitir — evita que un recibo emitido
+      // tarde (o reemitido meses después) muestre una antigüedad de hoy que
+      // no corresponde al período que el resto del documento describe.
+      fechaReferencia: datosEmision.fechaPago,
       usuarioId: input.usuarioId,
     };
 
