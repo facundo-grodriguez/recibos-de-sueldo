@@ -18,6 +18,8 @@ interface EditarEmpleadoModalProps {
 
 function aValoresFormulario(empleado: Empleado): EditarEmpleadoFormValues {
   return {
+    nombre: empleado.nombre,
+    apellido: empleado.apellido,
     categoria: empleado.categoria ?? '',
     fechaIngreso: empleado.fechaIngreso ? parsearFechaLocal(empleado.fechaIngreso) : null,
     legajo: empleado.legajo ?? '',
@@ -66,7 +68,11 @@ function Formulario({
   return (
     <form onSubmit={form.onSubmit(handleSubmit)}>
       <Stack gap="sm">
-        <TextInput label="Categoría" autoFocus {...form.getInputProps('categoria')} />
+        <Group grow>
+          <TextInput label="Nombre" autoFocus {...form.getInputProps('nombre')} />
+          <TextInput label="Apellido" {...form.getInputProps('apellido')} />
+        </Group>
+        <TextInput label="Categoría" {...form.getInputProps('categoria')} />
         <DatePickerInput
           label="Fecha de ingreso"
           clearable

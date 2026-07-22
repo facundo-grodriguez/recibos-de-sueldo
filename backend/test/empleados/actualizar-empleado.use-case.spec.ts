@@ -68,8 +68,8 @@ class EmpleadoRepositoryFake implements EmpleadoRepository {
     this.empleado = Empleado.create({
       id: this.empleado.id,
       empresaId: this.empleado.empresaId,
-      nombre: this.empleado.nombre,
-      apellido: this.empleado.apellido,
+      nombre: data.nombre ?? this.empleado.nombre,
+      apellido: data.apellido ?? this.empleado.apellido,
       cuil: this.empleado.cuil.value,
       estado: this.empleado.estado,
       categoria: data.categoria ?? this.empleado.categoria,
@@ -135,6 +135,20 @@ describe('ActualizarEmpleadoUseCase', () => {
     });
 
     expect(resultado.banco).toBe('Banco Nación');
+  });
+
+  it('corrige un typo de nombre y apellido (Etapa 3 — el CUIL nunca se toca por acá)', async () => {
+    const resultado = await useCase.execute({
+      empresaId: EMPRESA_ID,
+      usuarioId: USUARIO_ID,
+      empleadoId: EMPLEADO_ID,
+      nombre: 'Juan Carlos',
+      apellido: 'Pérez',
+    });
+
+    expect(resultado.nombre).toBe('Juan Carlos');
+    expect(resultado.apellido).toBe('Pérez');
+    expect(resultado.cuil.value).toBe('27309876542');
   });
 
   it('rechaza si la empresa no pertenece al usuario', async () => {

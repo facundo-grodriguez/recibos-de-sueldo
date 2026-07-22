@@ -8,6 +8,8 @@ export interface ActualizarEmpleadoInput {
   empresaId: string;
   usuarioId: string;
   empleadoId: string;
+  nombre?: string;
+  apellido?: string;
   categoria?: string | null;
   fechaIngreso?: Date | null;
   legajo?: string | null;
@@ -33,6 +35,8 @@ export class ActualizarEmpleadoUseCase {
     }
 
     return this.empleadoRepository.actualizar(empleado.id, {
+      nombre: input.nombre,
+      apellido: input.apellido,
       categoria: input.categoria,
       fechaIngreso: input.fechaIngreso,
       legajo: input.legajo,

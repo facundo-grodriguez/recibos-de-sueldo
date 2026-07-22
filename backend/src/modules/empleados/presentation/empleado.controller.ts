@@ -51,6 +51,8 @@ export class EmpleadoController {
       empresaId,
       usuarioId: user.id,
       empleadoId: id,
+      nombre: dto.nombre,
+      apellido: dto.apellido,
       categoria: dto.categoria,
       fechaIngreso: dto.fechaIngreso,
       legajo: dto.legajo,

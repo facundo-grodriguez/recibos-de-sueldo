@@ -8,6 +8,8 @@ export interface CrearEmpleadoData {
 }
 
 export interface ActualizarEmpleadoData {
+  nombre?: string;
+  apellido?: string;
   categoria?: string | null;
   fechaIngreso?: Date | null;
   legajo?: string | null;

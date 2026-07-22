@@ -65,6 +65,8 @@ export class PrismaEmpleadoRepository implements EmpleadoRepository {
     const registro = await this.prisma.empleado.update({
       where: { id },
       data: {
+        nombre: data.nombre,
+        apellido: data.apellido,
         categoria: data.categoria,
         fechaIngreso: data.fechaIngreso,
         legajo: data.legajo,
