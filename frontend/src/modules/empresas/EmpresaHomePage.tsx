@@ -1,5 +1,5 @@
 import { Alert, Anchor, Button, Group, Stack, Text, Title } from '@mantine/core';
-import { IconArrowLeft, IconEdit, IconFileImport, IconHistory, IconUsers } from '@tabler/icons-react';
+import { IconArrowLeft, IconEdit, IconFileImport, IconHistory, IconTags, IconUsers } from '@tabler/icons-react';
 import { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
 import { EmpresaFormModal } from './EmpresaFormModal';
@@ -64,6 +64,13 @@ export function EmpresaHomePage() {
           onClick={() => navigate(`/empresas/${empresaId}/recibos`)}
         >
           Historial de recibos
+        </Button>
+        <Button
+          variant="light"
+          leftSection={<IconTags size={16} />}
+          onClick={() => navigate(`/empresas/${empresaId}/conceptos`)}
+        >
+          Conceptos
         </Button>
       </Group>
 

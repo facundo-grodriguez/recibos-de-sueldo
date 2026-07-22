@@ -14,6 +14,10 @@ export function listarConceptosSinMapear(token: string, empresaId: string): Prom
   );
 }
 
+export function listarMapeos(token: string, empresaId: string): Promise<PerfilMapeoConcepto[]> {
+  return request(`/empresas/${empresaId}/conceptos-mapeados`, { token });
+}
+
 export function definirMapeo(
   token: string,
   empresaId: string,

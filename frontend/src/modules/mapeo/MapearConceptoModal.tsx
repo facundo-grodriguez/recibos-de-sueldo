@@ -13,12 +13,19 @@ import {
   type DefinirMapeoFormValues,
 } from './schema';
 
+interface MapeoExistente {
+  tipo: DefinirMapeoFormValues['tipo'];
+  categoriaContribucion: DefinirMapeoFormValues['categoriaContribucion'] | null;
+}
+
 interface MapearConceptoModalProps {
   empresaId: string;
   concepto: string | undefined;
   onClose: () => void;
   /** Se llama además de invalidar la lista de pendientes propia — para que quien la use también refresque lo que necesite (ej. la importación en pantalla). */
   onMapeado?: () => void;
+  /** Si viene, el modal edita un concepto ya mapeado (precarga tipo/categoría) en vez de asumir "Remunerativo" (Etapa 3). */
+  mapeoExistente?: MapeoExistente;
 }
 
 const opcionesTipo = TIPOS_CONCEPTO.map((tipo) => ({ value: tipo, label: ETIQUETAS_TIPO_CONCEPTO[tipo] }));
@@ -27,11 +34,24 @@ const opcionesCategoria = CATEGORIAS_CONTRIBUCION.map((categoria) => ({
   label: ETIQUETAS_CATEGORIA_CONTRIBUCION[categoria],
 }));
 
-export function MapearConceptoModal({ empresaId, concepto, onClose, onMapeado }: MapearConceptoModalProps) {
+export function MapearConceptoModal({
+  empresaId,
+  concepto,
+  onClose,
+  onMapeado,
+  mapeoExistente,
+}: MapearConceptoModalProps) {
   return (
     <Modal opened={concepto !== undefined} onClose={onClose} title="Mapear concepto">
       {concepto && (
-        <Formulario key={concepto} empresaId={empresaId} concepto={concepto} onClose={onClose} onMapeado={onMapeado} />
+        <Formulario
+          key={concepto}
+          empresaId={empresaId}
+          concepto={concepto}
+          onClose={onClose}
+          onMapeado={onMapeado}
+          mapeoExistente={mapeoExistente}
+        />
       )}
     </Modal>
   );
@@ -42,16 +62,22 @@ function Formulario({
   concepto,
   onClose,
   onMapeado,
+  mapeoExistente,
 }: {
   empresaId: string;
   concepto: string;
   onClose: () => void;
   onMapeado?: () => void;
+  mapeoExistente?: MapeoExistente;
 }) {
   const definir = useDefinirMapeo(empresaId);
 
   const form = useForm<DefinirMapeoFormValues>({
-    initialValues: { concepto, tipo: 'remunerativo', categoriaContribucion: undefined },
+    initialValues: {
+      concepto,
+      tipo: mapeoExistente?.tipo ?? 'remunerativo',
+      categoriaContribucion: mapeoExistente?.categoriaContribucion ?? undefined,
+    },
     validate: zodValidate(definirMapeoSchema),
   });
 
