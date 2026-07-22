@@ -13,13 +13,22 @@ interface CorregirFilaModalProps {
   importacionId: string;
   fila: ImportacionFila | undefined;
   onClose: () => void;
+  /** Se llama solo cuando la corrección se guardó con éxito (no al cancelar) — usado para saltar automáticamente al próximo error. */
+  onCorregida?: () => void;
 }
 
-export function CorregirFilaModal({ empresaId, importacionId, fila, onClose }: CorregirFilaModalProps) {
+export function CorregirFilaModal({ empresaId, importacionId, fila, onClose, onCorregida }: CorregirFilaModalProps) {
   return (
     <Modal opened={fila !== undefined} onClose={onClose} title="Corregir fila" size="md">
       {fila && (
-        <Formulario key={fila.id} empresaId={empresaId} importacionId={importacionId} fila={fila} onClose={onClose} />
+        <Formulario
+          key={fila.id}
+          empresaId={empresaId}
+          importacionId={importacionId}
+          fila={fila}
+          onClose={onClose}
+          onCorregida={onCorregida}
+        />
       )}
     </Modal>
   );
@@ -42,11 +51,13 @@ function Formulario({
   importacionId,
   fila,
   onClose,
+  onCorregida,
 }: {
   empresaId: string;
   importacionId: string;
   fila: ImportacionFila;
   onClose: () => void;
+  onCorregida?: () => void;
 }) {
   const corregir = useCorregirFilaImportacion(empresaId, importacionId);
 
@@ -60,6 +71,7 @@ function Formulario({
       await corregir.mutateAsync({ filaId: fila.id, cambios: omitirVacios(values) });
       notifications.show({ message: `Fila ${fila.numeroFila} corregida`, color: 'green' });
       onClose();
+      onCorregida?.();
     } catch (err) {
       notifications.show({
         message: err instanceof ApiError ? err.message : 'No se pudo corregir la fila',
@@ -75,7 +87,7 @@ function Formulario({
           Fila {fila.numeroFila}
         </Text>
         <Group grow>
-          <TextInput label="CUIL" {...form.getInputProps('cuil')} />
+          <TextInput label="CUIL" autoFocus {...form.getInputProps('cuil')} />
           <TextInput label="Monto" {...form.getInputProps('monto')} />
         </Group>
         <Group grow>

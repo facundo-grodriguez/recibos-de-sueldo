@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Alert, Anchor, Badge, Button, Grid, Group, Stack, Text, Title } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
@@ -65,6 +65,24 @@ export function ImportacionDetailPage() {
     [gruposFiltrados],
   );
 
+  // Auto-avance tras corregir una fila (Etapa 2 UX): saltar al próximo error sin que el
+  // contador tenga que volver a ubicarlo a mano. Espera al refetch real (erroresNavegables
+  // se recalcula solo cuando cambian los datos) en vez de asumir el resultado al cerrar el modal.
+  // Los hooks van antes de los `return` condicionales de más abajo (Rules of Hooks) — por eso
+  // usa un ref a `irAGrupo` en vez de llamar a la función directamente (se define después).
+  const saltarAlProximoErrorRef = useRef(false);
+  const irAGrupoRef = useRef<(clave: string) => void>(() => {});
+  useEffect(() => {
+    if (saltarAlProximoErrorRef.current) {
+      saltarAlProximoErrorRef.current = false;
+      if (erroresNavegables.length > 0) {
+        setFilaResaltadaId(erroresNavegables[0].filaId);
+        irAGrupoRef.current(erroresNavegables[0].claveGrupo);
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [erroresNavegables]);
+
   if (isLoading) {
     return <Text c="dimmed">Cargando…</Text>;
   }
@@ -117,10 +135,15 @@ export function ImportacionDetailPage() {
     setExpandidoOverride((anterior) => new Map(anterior).set(clave, true));
     refsGrupo.current.get(clave)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
+  irAGrupoRef.current = irAGrupo;
 
   function irAError(error: ErrorNavegable): void {
     setFilaResaltadaId(error.filaId);
     irAGrupo(error.claveGrupo);
+  }
+
+  function handleFilaCorregida(): void {
+    saltarAlProximoErrorRef.current = true;
   }
 
   return (
@@ -238,6 +261,7 @@ export function ImportacionDetailPage() {
         importacionId={importacionId}
         fila={filaACorregir}
         onClose={() => setFilaACorregir(undefined)}
+        onCorregida={handleFilaCorregida}
       />
     </Stack>
   );
