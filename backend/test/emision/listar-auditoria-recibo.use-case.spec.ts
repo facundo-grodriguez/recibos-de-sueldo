@@ -81,6 +81,10 @@ class ImportacionRepositoryFake implements ImportacionRepository {
     throw new Error('no usado en este test');
   }
 
+  async existeOtraEnMismoPeriodo(): Promise<boolean> {
+    return false;
+  }
+
   async actualizarDatosEmision(): Promise<Importacion> {
     throw new Error('no usado en este test');
   }

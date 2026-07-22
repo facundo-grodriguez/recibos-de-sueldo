@@ -37,6 +37,7 @@ export interface ImportacionResponse {
   /** Cuántas filas recibieron alguna normalización automática de formato (ver ImportacionFila.correcciones). */
   filasConCorrecciones: number;
   filas: ImportacionFilaResponse[];
+  hayOtraImportacionEnMismoPeriodo: boolean;
 }
 
 /** Resumen sin el detalle fila por fila — para el listado, no para el detalle de una importación puntual. */
@@ -66,7 +67,10 @@ export function toImportacionResumenResponse(importacion: Importacion): Importac
   };
 }
 
-export function toImportacionResponse(importacion: Importacion): ImportacionResponse {
+export function toImportacionResponse(
+  importacion: Importacion,
+  hayOtraImportacionEnMismoPeriodo = false,
+): ImportacionResponse {
   return {
     id: importacion.id,
     anio: importacion.anio,
@@ -103,5 +107,6 @@ export function toImportacionResponse(importacion: Importacion): ImportacionResp
       base: fila.base,
       correcciones: fila.correcciones,
     })),
+    hayOtraImportacionEnMismoPeriodo,
   };
 }

@@ -23,20 +23,44 @@ describe('filtrarImportaciones', () => {
     importacion({ id: '2', anio: 2026, mes: 8, nombreArchivo: 'agosto.xlsx' }),
   ];
 
-  it('sin búsqueda devuelve todas', () => {
-    expect(filtrarImportaciones(importaciones, '').map((i) => i.id)).toEqual(['1', '2']);
+  it('sin búsqueda devuelve todas (sin descartadas)', () => {
+    expect(
+      filtrarImportaciones(importaciones, { busqueda: '', mostrarDescartadas: false }).map((i) => i.id),
+    ).toEqual(['1', '2']);
   });
 
   it('filtra por nombre de archivo, sin distinguir mayúsculas', () => {
-    expect(filtrarImportaciones(importaciones, 'JULIO').map((i) => i.id)).toEqual(['1']);
+    expect(
+      filtrarImportaciones(importaciones, { busqueda: 'JULIO', mostrarDescartadas: false }).map((i) => i.id),
+    ).toEqual(['1']);
   });
 
   it('filtra por nombre de mes o año del período', () => {
-    expect(filtrarImportaciones(importaciones, 'agosto').map((i) => i.id)).toEqual(['2']);
-    expect(filtrarImportaciones(importaciones, '2026').map((i) => i.id)).toEqual(['1', '2']);
+    expect(
+      filtrarImportaciones(importaciones, { busqueda: 'agosto', mostrarDescartadas: false }).map((i) => i.id),
+    ).toEqual(['2']);
+    expect(
+      filtrarImportaciones(importaciones, { busqueda: '2026', mostrarDescartadas: false }).map((i) => i.id),
+    ).toEqual(['1', '2']);
   });
 
   it('no devuelve nada si la búsqueda no matchea ningún campo', () => {
-    expect(filtrarImportaciones(importaciones, 'inexistente')).toEqual([]);
+    expect(filtrarImportaciones(importaciones, { busqueda: 'inexistente', mostrarDescartadas: false })).toEqual([]);
+  });
+
+  it('oculta las descartadas por defecto (Etapa 3)', () => {
+    const conDescartada = [...importaciones, importacion({ id: '3', estado: 'descartada' })];
+
+    expect(
+      filtrarImportaciones(conDescartada, { busqueda: '', mostrarDescartadas: false }).map((i) => i.id),
+    ).toEqual(['1', '2']);
+  });
+
+  it('muestra las descartadas cuando se pide explícitamente', () => {
+    const conDescartada = [...importaciones, importacion({ id: '3', estado: 'descartada' })];
+
+    expect(
+      filtrarImportaciones(conDescartada, { busqueda: '', mostrarDescartadas: true }).map((i) => i.id).sort(),
+    ).toEqual(['1', '2', '3']);
   });
 });

@@ -1,4 +1,4 @@
-import { Anchor, Badge, Group, Stack, Table, Text, TextInput, Title, Button } from '@mantine/core';
+import { Anchor, Badge, Group, Stack, Switch, Table, Text, TextInput, Title, Button } from '@mantine/core';
 import { IconArrowLeft, IconSearch, IconUpload } from '@tabler/icons-react';
 import { useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
@@ -15,11 +15,12 @@ export function ImportacionesPage() {
   const { data: importaciones, isLoading, isError } = useImportaciones(empresaId ?? '');
   const [modalAbierto, setModalAbierto] = useState(false);
   const [busqueda, setBusqueda] = useState('');
+  const [mostrarDescartadas, setMostrarDescartadas] = useState(false);
   const navigate = useNavigate();
 
   const importacionesFiltradas = useMemo(
-    () => (importaciones ? filtrarImportaciones(importaciones, busqueda) : []),
-    [importaciones, busqueda],
+    () => (importaciones ? filtrarImportaciones(importaciones, { busqueda, mostrarDescartadas }) : []),
+    [importaciones, busqueda, mostrarDescartadas],
   );
 
   if (cargandoEmpresas) {
@@ -55,12 +56,20 @@ export function ImportacionesPage() {
       {isLoading && <Text c="dimmed">Cargando…</Text>}
 
       {importaciones && importaciones.length > 0 && (
-        <TextInput
-          placeholder="Buscar por archivo, mes o año"
-          leftSection={<IconSearch size={16} />}
-          value={busqueda}
-          onChange={(event) => setBusqueda(event.currentTarget.value)}
-        />
+        <Group>
+          <TextInput
+            placeholder="Buscar por archivo, mes o año"
+            leftSection={<IconSearch size={16} />}
+            value={busqueda}
+            onChange={(event) => setBusqueda(event.currentTarget.value)}
+            style={{ flex: 1 }}
+          />
+          <Switch
+            label="Mostrar descartadas"
+            checked={mostrarDescartadas}
+            onChange={(event) => setMostrarDescartadas(event.currentTarget.checked)}
+          />
+        </Group>
       )}
 
       {importaciones && importaciones.length > 0 && importacionesFiltradas.length === 0 && (
@@ -93,8 +102,20 @@ export function ImportacionesPage() {
                   {importacion.filasConError > 0 ? ` (${importacion.filasConError} con error)` : ''}
                 </Table.Td>
                 <Table.Td>
-                  <Badge color={importacion.estado === 'confirmada' ? 'green' : 'yellow'}>
-                    {importacion.estado === 'confirmada' ? 'Confirmada' : 'Previsualizada'}
+                  <Badge
+                    color={
+                      importacion.estado === 'confirmada'
+                        ? 'green'
+                        : importacion.estado === 'descartada'
+                          ? 'gray'
+                          : 'yellow'
+                    }
+                  >
+                    {importacion.estado === 'confirmada'
+                      ? 'Confirmada'
+                      : importacion.estado === 'descartada'
+                        ? 'Descartada'
+                        : 'Previsualizada'}
                   </Badge>
                 </Table.Td>
               </Table.Tr>

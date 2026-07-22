@@ -57,6 +57,7 @@ export interface ImportacionRepository {
   findAllByEmpresa(empresaId: string): Promise<Importacion[]>;
   findByIdAndEmpresa(id: string, empresaId: string): Promise<Importacion | null>;
   marcarConfirmada(id: string): Promise<Importacion>;
+  marcarDescartada(id: string): Promise<Importacion>;
   /** Corrige una fila puntual y devuelve la importación completa recién releída (mismo patrón que marcarConfirmada/actualizarDatosEmision). */
   actualizarFila(filaId: string, data: ActualizarFilaData): Promise<Importacion>;
   actualizarDatosEmision(id: string, data: ActualizarDatosEmisionData): Promise<Importacion>;
@@ -93,6 +94,12 @@ export interface ImportacionRepository {
    * el empleado ya esté clasificado.
    */
   findConfirmadasAnteriores(empresaId: string, anio: number, mes: number): Promise<Importacion[]>;
+  /**
+   * ¿Existe alguna OTRA importación (cualquier estado) de la empresa para ese mismo año/mes?
+   * Consulta liviana (sin traer filas) — usada solo para avisar de un posible período duplicado
+   * (Etapa 3), nunca para bloquear: puede ser intencional (reimportar corrigiendo un archivo).
+   */
+  existeOtraEnMismoPeriodo(empresaId: string, anio: number, mes: number, idAExcluir: string): Promise<boolean>;
 }
 
 export const IMPORTACION_REPOSITORY = Symbol('ImportacionRepository');

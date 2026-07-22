@@ -10,6 +10,12 @@ export interface ObtenerImportacionInput {
   usuarioId: string;
 }
 
+export interface ObtenerImportacionResultado {
+  importacion: Importacion;
+  /** Etapa 3: aviso (no bloqueo) si ya existe otra importación de esta empresa para el mismo período. */
+  hayOtraImportacionEnMismoPeriodo: boolean;
+}
+
 @Injectable()
 export class ObtenerImportacionUseCase {
   constructor(
@@ -17,7 +23,7 @@ export class ObtenerImportacionUseCase {
     @Inject(IMPORTACION_REPOSITORY) private readonly importacionRepository: ImportacionRepository,
   ) {}
 
-  async execute(input: ObtenerImportacionInput): Promise<Importacion> {
+  async execute(input: ObtenerImportacionInput): Promise<ObtenerImportacionResultado> {
     const empresa = await this.empresaRepository.findByIdAndUsuario(input.empresaId, input.usuarioId);
     if (!empresa) {
       throw new NotFoundError(`Empresa "${input.empresaId}" no encontrada`);
@@ -28,6 +34,13 @@ export class ObtenerImportacionUseCase {
       throw new NotFoundError(`Importación "${input.importacionId}" no encontrada`);
     }
 
-    return importacion;
+    const hayOtraImportacionEnMismoPeriodo = await this.importacionRepository.existeOtraEnMismoPeriodo(
+      empresa.id,
+      importacion.anio,
+      importacion.mes,
+      importacion.id,
+    );
+
+    return { importacion, hayOtraImportacionEnMismoPeriodo };
   }
 }

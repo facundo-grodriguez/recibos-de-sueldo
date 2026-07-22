@@ -1,7 +1,13 @@
 import { DomainError } from '../../../shared/errors/domain-error';
 import { ImportacionFila } from './importacion-fila.entity';
 
-export type EstadoImportacion = 'previsualizada' | 'confirmada';
+/**
+ * 'descartada' (Etapa 3, recuperación de errores): el contador empezó a importar el archivo/período
+ * equivocado y quiere sacarlo de en medio — nunca se borra nada (el archivo y las filas quedan tal
+ * cual), solo se oculta por defecto de la lista activa. Solo alcanzable desde 'previsualizada' —
+ * nunca se descarta algo que ya se confirmó.
+ */
+export type EstadoImportacion = 'previsualizada' | 'confirmada' | 'descartada';
 
 export interface ImportacionProps {
   id: string;

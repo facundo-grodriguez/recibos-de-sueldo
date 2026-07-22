@@ -6,6 +6,7 @@ import {
   actualizarDatosEmision,
   confirmarImportacion,
   corregirFilaImportacion,
+  descartarImportacion,
   importarArchivo,
   listarImportaciones,
   obtenerImportacion,
@@ -86,6 +87,18 @@ export function useConfirmarImportacion(empresaId: string, importacionId: string
       void queryClient.invalidateQueries({ queryKey: conceptosSinMapearKey(empresaId) });
       // Confirmar puede dar de alta empleados nuevos (crearEmpleadosFaltantes) que aún no están en la lista cacheada.
       void queryClient.invalidateQueries({ queryKey: empleadosKey(empresaId) });
+    },
+  });
+}
+
+export function useDescartarImportacion(empresaId: string, importacionId: string) {
+  const { token } = useAuth();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: () => descartarImportacion(token as string, empresaId, importacionId),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: importacionKey(empresaId, importacionId) });
+      void queryClient.invalidateQueries({ queryKey: importacionesKey(empresaId) });
     },
   });
 }

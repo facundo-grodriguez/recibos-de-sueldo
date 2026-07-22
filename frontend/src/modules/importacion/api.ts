@@ -6,7 +6,7 @@ export interface ImportacionResumen {
   anio: number;
   mes: number;
   nombreArchivo: string;
-  estado: 'previsualizada' | 'confirmada';
+  estado: 'previsualizada' | 'confirmada' | 'descartada';
   fechaImportacion: string;
   totalFilas: number;
   filasValidas: number;
@@ -40,6 +40,8 @@ export interface Importacion extends ImportacionResumen {
   filasSinClasificar: number;
   filasConCorrecciones: number;
   filas: ImportacionFila[];
+  /** Etapa 3: aviso (no bloqueo) si ya existe otra importación de esta empresa para el mismo período. */
+  hayOtraImportacionEnMismoPeriodo: boolean;
 }
 
 export function listarImportaciones(token: string, empresaId: string): Promise<ImportacionResumen[]> {
@@ -79,6 +81,13 @@ export function corregirFilaImportacion(
 
 export function confirmarImportacion(token: string, empresaId: string, importacionId: string): Promise<Importacion> {
   return request<Importacion>(`/empresas/${empresaId}/importaciones/${importacionId}/confirmar`, {
+    method: 'POST',
+    token,
+  });
+}
+
+export function descartarImportacion(token: string, empresaId: string, importacionId: string): Promise<Importacion> {
+  return request<Importacion>(`/empresas/${empresaId}/importaciones/${importacionId}/descartar`, {
     method: 'POST',
     token,
   });

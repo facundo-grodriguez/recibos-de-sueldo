@@ -3,7 +3,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { Alert, Anchor, Badge, Button, Grid, Group, Stack, Text, Title } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import { IconArrowLeft } from '@tabler/icons-react';
-import { Link, useParams } from 'react-router';
+import { Link, useNavigate, useParams } from 'react-router';
 import { ApiError } from '../../shared/api/http';
 import { ConfirmModal } from '../../shared/ui/ConfirmModal';
 import { EmisionSection } from '../emision/EmisionSection';
@@ -13,7 +13,7 @@ import { useValidacion } from '../validacion/queries';
 import type { ImportacionFila } from './api';
 import { CorregirFilaModal } from './CorregirFilaModal';
 import { NOMBRES_MES } from './nombresMes';
-import { importacionKey, useConfirmarImportacion, useImportacion } from './queries';
+import { importacionKey, useConfirmarImportacion, useDescartarImportacion, useImportacion } from './queries';
 import { agruparFilasPorEmpleado } from './revision/agruparFilasPorEmpleado';
 import { BarraLateralNavegacion } from './revision/BarraLateralNavegacion';
 import { BarraResumenSticky } from './revision/BarraResumenSticky';
@@ -23,6 +23,7 @@ import { NavegadorErrores, type ErrorNavegable } from './revision/NavegadorError
 
 export function ImportacionDetailPage() {
   const { empresaId, importacionId } = useParams<{ empresaId: string; importacionId: string }>();
+  const navigate = useNavigate();
   const { data: importacion, isLoading, isError } = useImportacion(empresaId ?? '', importacionId ?? '');
   const { data: conceptosPendientes } = useConceptosSinMapear(empresaId ?? '');
   // Reutiliza el mismo endpoint que EmisionSection (Paso 2). `.totales` se muestra siempre;
@@ -37,9 +38,11 @@ export function ImportacionDetailPage() {
   const [expandidoOverride, setExpandidoOverride] = useState<Map<string, boolean>>(new Map());
   const [filaResaltadaId, setFilaResaltadaId] = useState<string | undefined>(undefined);
   const [confirmarAbierto, setConfirmarAbierto] = useState(false);
+  const [descartarAbierto, setDescartarAbierto] = useState(false);
   const refsGrupo = useRef(new Map<string, HTMLDivElement>());
   const queryClient = useQueryClient();
   const confirmar = useConfirmarImportacion(empresaId ?? '', importacionId ?? '');
+  const descartar = useDescartarImportacion(empresaId ?? '', importacionId ?? '');
 
   const grupos = useMemo(() => (importacion ? agruparFilasPorEmpleado(importacion.filas) : []), [importacion]);
   const hayFiltroActivo = busqueda.trim() !== '' || filtro !== 'todos';
@@ -109,6 +112,21 @@ export function ImportacionDetailPage() {
     }
   }
 
+  async function handleDescartar(): Promise<void> {
+    try {
+      await descartar.mutateAsync();
+      notifications.show({ message: 'Importación descartada', color: 'green' });
+      navigate(`/empresas/${empresaId}/importaciones`);
+    } catch (err) {
+      notifications.show({
+        message: err instanceof ApiError ? err.message : 'No se pudo descartar la importación',
+        color: 'red',
+      });
+    } finally {
+      setDescartarAbierto(false);
+    }
+  }
+
   /** Expandido por defecto si tiene error; forzado si hay un filtro/búsqueda activos (no esconder lo que se encontró); el toggle manual pisa ambos. */
   function estaExpandido(clave: string, tieneError: boolean): boolean {
     if (expandidoOverride.has(clave)) return expandidoOverride.get(clave) as boolean;
@@ -160,8 +178,15 @@ export function ImportacionDetailPage() {
           {NOMBRES_MES[importacion.mes - 1]} {importacion.anio} — {importacion.nombreArchivo}
         </Title>
         <Group gap="sm">
-          <Badge color={importacion.estado === 'confirmada' ? 'green' : 'yellow'} size="lg">
-            {importacion.estado === 'confirmada' ? 'Confirmada' : 'Previsualizada'}
+          <Badge
+            color={importacion.estado === 'confirmada' ? 'green' : importacion.estado === 'descartada' ? 'gray' : 'yellow'}
+            size="lg"
+          >
+            {importacion.estado === 'confirmada'
+              ? 'Confirmada'
+              : importacion.estado === 'descartada'
+                ? 'Descartada'
+                : 'Previsualizada'}
           </Badge>
           {importacion.estado === 'previsualizada' && (
             <Button
@@ -173,8 +198,30 @@ export function ImportacionDetailPage() {
               Confirmar
             </Button>
           )}
+          {importacion.estado === 'previsualizada' && (
+            <Button
+              size="xs"
+              variant="subtle"
+              color="red"
+              loading={descartar.isPending}
+              onClick={() => setDescartarAbierto(true)}
+            >
+              Descartar
+            </Button>
+          )}
         </Group>
       </Group>
+
+      <ConfirmModal
+        opened={descartarAbierto}
+        title="Descartar importación"
+        message="Se oculta de la lista activa (podés volver a verla con 'Mostrar descartadas'). El archivo y las filas no se borran. ¿Confirmás?"
+        confirmLabel="Descartar"
+        confirmColor="red"
+        loading={descartar.isPending}
+        onConfirm={() => void handleDescartar()}
+        onCancel={() => setDescartarAbierto(false)}
+      />
 
       <ConfirmModal
         opened={confirmarAbierto}
@@ -185,6 +232,13 @@ export function ImportacionDetailPage() {
         onConfirm={() => void handleConfirmar()}
         onCancel={() => setConfirmarAbierto(false)}
       />
+
+      {importacion.hayOtraImportacionEnMismoPeriodo && (
+        <Alert color="yellow" title="Ya existe otra importación para este período">
+          Puede ser intencional (ej. corrigiendo un archivo anterior) — revisá que no se dupliquen recibos antes de
+          emitir.
+        </Alert>
+      )}
 
       {conceptosPendientes && conceptosPendientes.length > 0 && (
         <Alert color="yellow" title="Conceptos sin mapear en esta empresa">

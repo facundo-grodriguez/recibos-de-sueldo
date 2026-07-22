@@ -104,6 +104,10 @@ class ImportacionRepositoryFake implements ImportacionRepository {
     throw new Error('no usado en este test');
   }
 
+  async existeOtraEnMismoPeriodo(): Promise<boolean> {
+    return false;
+  }
+
   async actualizarDatosEmision(id: string, data: ActualizarDatosEmisionData): Promise<Importacion> {
     if (!this.importacion || this.importacion.id !== id) {
       throw new Error('importación no encontrada en el fake');

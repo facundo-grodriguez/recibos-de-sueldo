@@ -117,6 +117,15 @@ export class PrismaImportacionRepository implements ImportacionRepository {
     return aDominio(registro);
   }
 
+  async marcarDescartada(id: string): Promise<Importacion> {
+    const registro = await this.prisma.importacion.update({
+      where: { id },
+      data: { estado: 'descartada' satisfies EstadoImportacion },
+      include: { filas: true },
+    });
+    return aDominio(registro);
+  }
+
   async actualizarDatosEmision(id: string, data: ActualizarDatosEmisionData): Promise<Importacion> {
     const registro = await this.prisma.importacion.update({
       where: { id },
@@ -257,5 +266,12 @@ export class PrismaImportacionRepository implements ImportacionRepository {
     });
 
     return registros.map(aDominio);
+  }
+
+  async existeOtraEnMismoPeriodo(empresaId: string, anio: number, mes: number, idAExcluir: string): Promise<boolean> {
+    const cantidad = await this.prisma.importacion.count({
+      where: { empresaId, anio, mes, id: { not: idAExcluir } },
+    });
+    return cantidad > 0;
   }
 }

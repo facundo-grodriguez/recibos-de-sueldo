@@ -89,6 +89,10 @@ class ImportacionRepositoryFake implements ImportacionRepository {
       .sort((a, b) => b.anio - a.anio || b.mes - a.mes);
   }
 
+  async existeOtraEnMismoPeriodo(): Promise<boolean> {
+    return false;
+  }
+
   async actualizarDatosEmision(): Promise<Importacion> {
     throw new Error('no usado en este test');
   }

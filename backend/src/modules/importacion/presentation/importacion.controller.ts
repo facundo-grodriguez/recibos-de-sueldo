@@ -18,6 +18,7 @@ import { JwtAuthGuard } from '../../auth/presentation/jwt-auth.guard';
 import { ActualizarDatosEmisionUseCase } from '../application/actualizar-datos-emision.use-case';
 import { ConfirmarImportacionUseCase } from '../application/confirmar-importacion.use-case';
 import { CorregirFilaImportacionUseCase } from '../application/corregir-fila-importacion.use-case';
+import { DescartarImportacionUseCase } from '../application/descartar-importacion.use-case';
 import { ImportarArchivoUseCase } from '../application/importar-archivo.use-case';
 import { ListarImportacionesUseCase } from '../application/listar-importaciones.use-case';
 import { ObtenerImportacionUseCase } from '../application/obtener-importacion.use-case';
@@ -41,6 +42,7 @@ export class ImportacionController {
     private readonly listarImportaciones: ListarImportacionesUseCase,
     private readonly actualizarDatosEmision: ActualizarDatosEmisionUseCase,
     private readonly corregirFilaImportacion: CorregirFilaImportacionUseCase,
+    private readonly descartarImportacion: DescartarImportacionUseCase,
   ) {}
 
   @Post()
@@ -79,12 +81,12 @@ export class ImportacionController {
     @Param('id') id: string,
     @CurrentUser() user: AuthenticatedUser,
   ) {
-    const importacion = await this.obtenerImportacion.execute({
+    const { importacion, hayOtraImportacionEnMismoPeriodo } = await this.obtenerImportacion.execute({
       importacionId: id,
       empresaId,
       usuarioId: user.id,
     });
-    return toImportacionResponse(importacion);
+    return toImportacionResponse(importacion, hayOtraImportacionEnMismoPeriodo);
   }
 
   @Post(':id/confirmar')
@@ -95,6 +97,21 @@ export class ImportacionController {
     @CurrentUser() user: AuthenticatedUser,
   ) {
     const importacion = await this.confirmarImportacion.execute({
+      importacionId: id,
+      empresaId,
+      usuarioId: user.id,
+    });
+    return toImportacionResponse(importacion);
+  }
+
+  @Post(':id/descartar')
+  @Auditable('Importacion', 'descartar')
+  async descartar(
+    @Param('empresaId') empresaId: string,
+    @Param('id') id: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    const importacion = await this.descartarImportacion.execute({
       importacionId: id,
       empresaId,
       usuarioId: user.id,

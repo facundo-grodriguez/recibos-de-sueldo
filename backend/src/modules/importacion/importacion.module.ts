@@ -5,6 +5,7 @@ import { MapeoModule } from '../mapeo/mapeo.module';
 import { ActualizarDatosEmisionUseCase } from './application/actualizar-datos-emision.use-case';
 import { ConfirmarImportacionUseCase } from './application/confirmar-importacion.use-case';
 import { CorregirFilaImportacionUseCase } from './application/corregir-fila-importacion.use-case';
+import { DescartarImportacionUseCase } from './application/descartar-importacion.use-case';
 import { ImportarArchivoUseCase } from './application/importar-archivo.use-case';
 import { ListarImportacionesUseCase } from './application/listar-importaciones.use-case';
 import { ObtenerImportacionUseCase } from './application/obtener-importacion.use-case';
@@ -24,6 +25,7 @@ import { ImportacionController } from './presentation/importacion.controller';
     ListarImportacionesUseCase,
     ActualizarDatosEmisionUseCase,
     CorregirFilaImportacionUseCase,
+    DescartarImportacionUseCase,
     { provide: IMPORTACION_REPOSITORY, useClass: PrismaImportacionRepository },
     { provide: CONECTOR_IMPORTACION_EXCEL, useClass: ExcelConectorImportacion },
   ],

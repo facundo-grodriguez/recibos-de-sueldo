@@ -85,6 +85,10 @@ class ImportacionRepositoryFake implements ImportacionRepository {
   async findConfirmadasAnteriores(): Promise<Importacion[]> {
     throw new Error('no usado en este test');
   }
+
+  async existeOtraEnMismoPeriodo(): Promise<boolean> {
+    return false;
+  }
 }
 
 class EmpleadoRepositoryFake implements EmpleadoRepository {
