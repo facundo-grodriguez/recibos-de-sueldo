@@ -5,6 +5,7 @@ import { notifications } from '@mantine/notifications';
 import { IconArrowLeft } from '@tabler/icons-react';
 import { Link, useParams } from 'react-router';
 import { ApiError } from '../../shared/api/http';
+import { ConfirmModal } from '../../shared/ui/ConfirmModal';
 import { EmisionSection } from '../emision/EmisionSection';
 import { MapearConceptoModal } from '../mapeo/MapearConceptoModal';
 import { useConceptosSinMapear } from '../mapeo/queries';
@@ -35,6 +36,7 @@ export function ImportacionDetailPage() {
   const [filtro, setFiltro] = useState<FiltroEstadoRevision>('todos');
   const [expandidoOverride, setExpandidoOverride] = useState<Map<string, boolean>>(new Map());
   const [filaResaltadaId, setFilaResaltadaId] = useState<string | undefined>(undefined);
+  const [confirmarAbierto, setConfirmarAbierto] = useState(false);
   const refsGrupo = useRef(new Map<string, HTMLDivElement>());
   const queryClient = useQueryClient();
   const confirmar = useConfirmarImportacion(empresaId ?? '', importacionId ?? '');
@@ -84,6 +86,8 @@ export function ImportacionDetailPage() {
         message: err instanceof ApiError ? err.message : 'No se pudo confirmar la importación',
         color: 'red',
       });
+    } finally {
+      setConfirmarAbierto(false);
     }
   }
 
@@ -141,13 +145,23 @@ export function ImportacionDetailPage() {
               size="xs"
               disabled={importacion.filasConError > 0}
               loading={confirmar.isPending}
-              onClick={() => void handleConfirmar()}
+              onClick={() => setConfirmarAbierto(true)}
             >
               Confirmar
             </Button>
           )}
         </Group>
       </Group>
+
+      <ConfirmModal
+        opened={confirmarAbierto}
+        title="Confirmar importación"
+        message="Después de confirmar, las filas ya no se pueden corregir línea por línea. ¿Confirmar esta importación?"
+        confirmLabel="Confirmar"
+        loading={confirmar.isPending}
+        onConfirm={() => void handleConfirmar()}
+        onCancel={() => setConfirmarAbierto(false)}
+      />
 
       {conceptosPendientes && conceptosPendientes.length > 0 && (
         <Alert color="yellow" title="Conceptos sin mapear en esta empresa">

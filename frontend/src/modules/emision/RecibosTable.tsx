@@ -2,6 +2,7 @@ import { Badge, Button, Group, Stack, Table, Text } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import { useState } from 'react';
 import { useAuth } from '../../shared/auth/AuthContext';
+import { ConfirmModal } from '../../shared/ui/ConfirmModal';
 import { AnularReciboModal } from './AnularReciboModal';
 import type { Recibo } from './api';
 import { descargarRecibo } from './api';
@@ -17,6 +18,7 @@ export function RecibosTable({ empresaId, recibos }: RecibosTableProps) {
   const { token } = useAuth();
   const [reciboAAnular, setReciboAAnular] = useState<Recibo | undefined>(undefined);
   const [reciboAuditoria, setReciboAuditoria] = useState<Recibo | undefined>(undefined);
+  const [reciboAReemitir, setReciboAReemitir] = useState<Recibo | undefined>(undefined);
   const reemitir = useReemitirRecibo(empresaId);
 
   // Un recibo anulado ya reemitido no debe ofrecer "Reemitir" de nuevo (el backend lo rechazaría).
@@ -36,6 +38,8 @@ export function RecibosTable({ empresaId, recibos }: RecibosTableProps) {
       notifications.show({ message: 'Recibo reemitido', color: 'green' });
     } catch {
       notifications.show({ message: 'No se pudo reemitir el recibo', color: 'red' });
+    } finally {
+      setReciboAReemitir(undefined);
     }
   }
 
@@ -86,12 +90,7 @@ export function RecibosTable({ empresaId, recibos }: RecibosTableProps) {
                     </Button>
                   )}
                   {recibo.estado === 'anulado' && !yaReemplazados.has(recibo.id) && (
-                    <Button
-                      size="xs"
-                      variant="light"
-                      loading={reemitir.isPending}
-                      onClick={() => void handleReemitir(recibo)}
-                    >
+                    <Button size="xs" variant="light" onClick={() => setReciboAReemitir(recibo)}>
                       Reemitir
                     </Button>
                   )}
@@ -109,6 +108,19 @@ export function RecibosTable({ empresaId, recibos }: RecibosTableProps) {
         empresaId={empresaId}
         recibo={reciboAuditoria}
         onClose={() => setReciboAuditoria(undefined)}
+      />
+      <ConfirmModal
+        opened={reciboAReemitir !== undefined}
+        title="Reemitir recibo"
+        message={
+          reciboAReemitir
+            ? `Se va a generar un recibo nuevo para ${reciboAReemitir.apellido}, ${reciboAReemitir.nombre} que reemplaza al anulado. ¿Confirmás?`
+            : ''
+        }
+        confirmLabel="Reemitir"
+        loading={reemitir.isPending}
+        onConfirm={() => reciboAReemitir && void handleReemitir(reciboAReemitir)}
+        onCancel={() => setReciboAReemitir(undefined)}
       />
     </Stack>
   );

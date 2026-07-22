@@ -3,6 +3,7 @@ import { IconArrowLeft, IconPlus, IconSearch } from '@tabler/icons-react';
 import { useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router';
 import { parsearFechaLocal } from '../../shared/forms/parsearFechaLocal';
+import { ConfirmModal } from '../../shared/ui/ConfirmModal';
 import { useEmpresa, useEmpresas } from '../empresas/queries';
 import type { Empleado } from './api';
 import { calcularAntiguedad } from './calcularAntiguedad';
@@ -28,6 +29,7 @@ export function EmpleadosPage() {
   const [mostrarInactivos, setMostrarInactivos] = useState(false);
   const [modalAltaAbierto, setModalAltaAbierto] = useState(false);
   const [empleadoAEditar, setEmpleadoAEditar] = useState<Empleado | undefined>(undefined);
+  const [empleadoABajar, setEmpleadoABajar] = useState<Empleado | undefined>(undefined);
 
   const empleadosFiltrados = useMemo(
     () => (empleados ? filtrarEmpleados(empleados, { busqueda, mostrarInactivos }) : []),
@@ -76,7 +78,11 @@ export function EmpleadosPage() {
       {isError && <Text c="red">No se pudieron cargar los empleados.</Text>}
 
       {!isLoading && !isError && empleadosFiltrados.length === 0 && (
-        <Text c="dimmed">No hay empleados que coincidan con la búsqueda.</Text>
+        <Text c="dimmed">
+          {empleados && empleados.length === 0
+            ? 'Todavía no hay empleados. Creá el primero con "Nuevo empleado".'
+            : 'No hay empleados que coincidan con la búsqueda.'}
+        </Text>
       )}
 
       {empleadosFiltrados.length > 0 && (
@@ -120,10 +126,9 @@ export function EmpleadosPage() {
                       color={empleado.estado === 'activo' ? 'red' : 'green'}
                       loading={cambiarEstado.isPending}
                       onClick={() =>
-                        cambiarEstado.mutate({
-                          empleadoId: empleado.id,
-                          estado: empleado.estado === 'activo' ? 'inactivo' : 'activo',
-                        })
+                        empleado.estado === 'activo'
+                          ? setEmpleadoABajar(empleado)
+                          : cambiarEstado.mutate({ empleadoId: empleado.id, estado: 'activo' })
                       }
                     >
                       {empleado.estado === 'activo' ? 'Dar de baja' : 'Reactivar'}
@@ -145,6 +150,23 @@ export function EmpleadosPage() {
         empresaId={empresaId}
         empleado={empleadoAEditar}
         onClose={() => setEmpleadoAEditar(undefined)}
+      />
+      <ConfirmModal
+        opened={empleadoABajar !== undefined}
+        title="Dar de baja empleado"
+        message={
+          empleadoABajar
+            ? `${empleadoABajar.apellido}, ${empleadoABajar.nombre} no va a poder recibir nuevos recibos mientras esté inactivo (podés reactivarlo cuando quieras). ¿Confirmás la baja?`
+            : ''
+        }
+        confirmLabel="Dar de baja"
+        confirmColor="red"
+        loading={cambiarEstado.isPending}
+        onConfirm={() => {
+          if (empleadoABajar) cambiarEstado.mutate({ empleadoId: empleadoABajar.id, estado: 'inactivo' });
+          setEmpleadoABajar(undefined);
+        }}
+        onCancel={() => setEmpleadoABajar(undefined)}
       />
     </Stack>
   );
