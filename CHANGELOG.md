@@ -2,7 +2,19 @@
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/). Este proyecto aún no tiene versiones publicadas (pre-release).
 
-## [Unreleased] — Ciclo de vida del empleado y de la relación laboral (documento de dominio)
+## [Unreleased] — Etapa 1: QA funcional completo (MVP Comercial)
+
+Primer recorrido completo del sistema como lo haría un contador usando el producto por primera vez (onboarding desde cero + casos borde + robustez). Ver `KNOWN_BUGS.md` (registro vivo de bugs, con la conclusión GO/NO-GO al principio) y `TODO.md` (mejoras de UX detectadas, no implementadas a propósito).
+
+### Corregido
+- `EmpleadosPage`: mostraba "No hay empleados que coincidan con la búsqueda" incluso en una empresa recién creada, sin ningún filtro activo — ahora distingue lista vacía real de búsqueda sin resultados.
+- `reconocerEmpleado`/`ImportarArchivoUseCase`: reimportar el CUIL de un empleado inactivo no avisaba nada — se salteaba en silencio recién al emitir (`EmitirRecibosUseCase`), sin ningún error. Ahora agrega una corrección informativa en la previsualización ("no se reactiva solo, revisar antes de emitir"), decisión ya fijada en ADR-079.
+- 4 acciones irreversibles (Confirmar importación, Emitir recibos, Reemitir recibo, Dar de baja empleado) ejecutaban directo con un solo click, sin ningún paso intermedio. Nuevo componente reutilizable `shared/ui/ConfirmModal.tsx` (sin agregar `@mantine/modals`), usado en las 4.
+
+### Verificado
+`tsc`/241 tests backend + 51 tests frontend en verde. Navegador real contra Postgres real: onboarding completo con cuenta nueva (registro → empresa → empleado → importación → mapeo → confirmar → emitir → descargar → historial), aislamiento multi-tenant (404/401 en los 5 casos probados), Excel inválido (extensión, vacío, columnas faltantes) con mensajes claros, y las 4 confirmaciones probadas en vivo.
+
+
 
 Ver ADR-079 en `DECISIONS.md`. Documento hermano de la Constitución de datos del empleado (ADR-077), disparado por un caso real: un empleado inactivo cuyo CUIL vuelve a aparecer en una importación se saltea en silencio al emitir recibos, sin ningún aviso.
 
