@@ -19,10 +19,11 @@ interface EmisionSectionProps {
 
 export function EmisionSection({ empresaId, importacion }: EmisionSectionProps) {
   const { token } = useAuth();
-  const { data: recibos } = useRecibos(empresaId, importacion.id);
+  const { data: recibos, isLoading: cargandoRecibos } = useRecibos(empresaId, importacion.id);
   const { data: validacion } = useValidacion(empresaId, importacion.id);
   const emitir = useEmitirRecibos(empresaId, importacion.id);
   const [confirmarAbierto, setConfirmarAbierto] = useState(false);
+  const [descargandoLote, setDescargandoLote] = useState(false);
 
   const yaEmitidos = recibos !== undefined && recibos.length > 0;
 
@@ -41,11 +42,22 @@ export function EmisionSection({ empresaId, importacion }: EmisionSectionProps) 
   }
 
   async function handleDescargarLote(): Promise<void> {
+    setDescargandoLote(true);
     try {
       await descargarLoteRecibos(token, empresaId, importacion.id);
     } catch {
       notifications.show({ message: 'No se pudo descargar el lote de recibos', color: 'red' });
+    } finally {
+      setDescargandoLote(false);
     }
+  }
+
+  if (cargandoRecibos) {
+    return (
+      <Stack gap="md">
+        <Divider />
+      </Stack>
+    );
   }
 
   return (
@@ -76,7 +88,7 @@ export function EmisionSection({ empresaId, importacion }: EmisionSectionProps) 
         <Stack gap="sm">
           <Group justify="space-between">
             <Title order={4}>Recibos emitidos</Title>
-            <Button size="xs" variant="light" onClick={() => void handleDescargarLote()}>
+            <Button size="xs" variant="light" loading={descargandoLote} onClick={() => void handleDescargarLote()}>
               Descargar todos (ZIP)
             </Button>
           </Group>

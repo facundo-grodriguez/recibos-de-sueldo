@@ -1,6 +1,7 @@
 import { Badge, Button, Group, Stack, Table, Text } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import { useState } from 'react';
+import { Link } from 'react-router';
 import { useAuth } from '../../shared/auth/AuthContext';
 import { ConfirmModal } from '../../shared/ui/ConfirmModal';
 import { AnularReciboModal } from './AnularReciboModal';
@@ -19,16 +20,20 @@ export function RecibosTable({ empresaId, recibos }: RecibosTableProps) {
   const [reciboAAnular, setReciboAAnular] = useState<Recibo | undefined>(undefined);
   const [reciboAuditoria, setReciboAuditoria] = useState<Recibo | undefined>(undefined);
   const [reciboAReemitir, setReciboAReemitir] = useState<Recibo | undefined>(undefined);
+  const [descargandoId, setDescargandoId] = useState<string | undefined>(undefined);
   const reemitir = useReemitirRecibo(empresaId);
 
   // Un recibo anulado ya reemitido no debe ofrecer "Reemitir" de nuevo (el backend lo rechazaría).
   const yaReemplazados = new Set(recibos.map((r) => r.reemplazaAId).filter((id): id is string => id !== null));
 
   async function handleDescargar(recibo: Recibo): Promise<void> {
+    setDescargandoId(recibo.id);
     try {
       await descargarRecibo(token, empresaId, recibo.importacionId, recibo);
     } catch {
       notifications.show({ message: 'No se pudo descargar el recibo', color: 'red' });
+    } finally {
+      setDescargandoId(undefined);
     }
   }
 
@@ -81,7 +86,12 @@ export function RecibosTable({ empresaId, recibos }: RecibosTableProps) {
               </Table.Td>
               <Table.Td>
                 <Group gap="xs">
-                  <Button size="xs" variant="light" onClick={() => void handleDescargar(recibo)}>
+                  <Button
+                    size="xs"
+                    variant="light"
+                    loading={descargandoId === recibo.id}
+                    onClick={() => void handleDescargar(recibo)}
+                  >
                     Descargar
                   </Button>
                   {recibo.estado === 'vigente' && (
@@ -96,6 +106,14 @@ export function RecibosTable({ empresaId, recibos }: RecibosTableProps) {
                   )}
                   <Button size="xs" variant="subtle" onClick={() => setReciboAuditoria(recibo)}>
                     Ver auditoría
+                  </Button>
+                  <Button
+                    size="xs"
+                    variant="subtle"
+                    component={Link}
+                    to={`/empresas/${empresaId}/importaciones/${recibo.importacionId}`}
+                  >
+                    Ver importación
                   </Button>
                 </Group>
               </Table.Td>

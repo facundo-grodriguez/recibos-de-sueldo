@@ -77,6 +77,8 @@ export function EmpleadosPage() {
 
       {isError && <Text c="red">No se pudieron cargar los empleados.</Text>}
 
+      {isLoading && <Text c="dimmed">Cargando…</Text>}
+
       {!isLoading && !isError && empleadosFiltrados.length === 0 && (
         <Text c="dimmed">
           {empleados && empleados.length === 0
@@ -119,6 +121,14 @@ export function EmpleadosPage() {
                   <Group gap="xs" justify="flex-end" wrap="nowrap">
                     <Button variant="subtle" size="xs" onClick={() => setEmpleadoAEditar(empleado)}>
                       Editar
+                    </Button>
+                    <Button
+                      variant="subtle"
+                      size="xs"
+                      component={Link}
+                      to={`/empresas/${empresaId}/recibos?empleadoId=${empleado.id}`}
+                    >
+                      Ver recibos
                     </Button>
                     <Button
                       variant="subtle"

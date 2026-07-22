@@ -1,14 +1,17 @@
 import { Anchor, Group, Pagination, Select, Stack, Text, Title } from '@mantine/core';
 import { IconArrowLeft } from '@tabler/icons-react';
 import { useState } from 'react';
-import { Link, useParams } from 'react-router';
+import { Link, useParams, useSearchParams } from 'react-router';
+import { useEmpresa } from '../empresas/queries';
 import { useEmpleados } from '../empleados/queries';
 import { RecibosTable } from './RecibosTable';
 import { useHistorialRecibos } from './queries';
 
 export function HistorialRecibosPage() {
   const { empresaId } = useParams<{ empresaId: string }>();
-  const [empleadoId, setEmpleadoId] = useState<string | null>(null);
+  const empresa = useEmpresa(empresaId);
+  const [searchParams] = useSearchParams();
+  const [empleadoId, setEmpleadoId] = useState<string | null>(searchParams.get('empleadoId'));
   const [pagina, setPagina] = useState(1);
   const { data: empleados } = useEmpleados(empresaId ?? '');
   const { data, isLoading } = useHistorialRecibos(empresaId ?? '', empleadoId ?? undefined, pagina);
@@ -30,7 +33,7 @@ export function HistorialRecibosPage() {
       <Anchor component={Link} to={`/empresas/${empresaId}`} size="sm">
         <Group gap={4}>
           <IconArrowLeft size={14} />
-          Empresa
+          {empresa?.razonSocial ?? 'Empresa'}
         </Group>
       </Anchor>
 

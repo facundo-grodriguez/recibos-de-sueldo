@@ -1,8 +1,9 @@
-import { Anchor, Badge, Group, Stack, Table, Text, Title, Button } from '@mantine/core';
-import { IconArrowLeft, IconUpload } from '@tabler/icons-react';
-import { useState } from 'react';
+import { Anchor, Badge, Group, Stack, Table, Text, TextInput, Title, Button } from '@mantine/core';
+import { IconArrowLeft, IconSearch, IconUpload } from '@tabler/icons-react';
+import { useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
 import { useEmpresa, useEmpresas } from '../empresas/queries';
+import { filtrarImportaciones } from './filtrarImportaciones';
 import { ImportarArchivoModal } from './ImportarArchivoModal';
 import { NOMBRES_MES } from './nombresMes';
 import { useImportaciones } from './queries';
@@ -13,7 +14,13 @@ export function ImportacionesPage() {
   const empresa = useEmpresa(empresaId);
   const { data: importaciones, isLoading, isError } = useImportaciones(empresaId ?? '');
   const [modalAbierto, setModalAbierto] = useState(false);
+  const [busqueda, setBusqueda] = useState('');
   const navigate = useNavigate();
+
+  const importacionesFiltradas = useMemo(
+    () => (importaciones ? filtrarImportaciones(importaciones, busqueda) : []),
+    [importaciones, busqueda],
+  );
 
   if (cargandoEmpresas) {
     return <Text c="dimmed">Cargando…</Text>;
@@ -41,11 +48,26 @@ export function ImportacionesPage() {
 
       {isError && <Text c="red">No se pudieron cargar las importaciones.</Text>}
 
-      {!isLoading && !isError && importaciones?.length === 0 && (
+      {!isLoading && !isError && importaciones && importaciones.length === 0 && (
         <Text c="dimmed">Todavía no se importó ningún archivo. Empezá con &quot;Importar archivo&quot;.</Text>
       )}
 
+      {isLoading && <Text c="dimmed">Cargando…</Text>}
+
       {importaciones && importaciones.length > 0 && (
+        <TextInput
+          placeholder="Buscar por archivo, mes o año"
+          leftSection={<IconSearch size={16} />}
+          value={busqueda}
+          onChange={(event) => setBusqueda(event.currentTarget.value)}
+        />
+      )}
+
+      {importaciones && importaciones.length > 0 && importacionesFiltradas.length === 0 && (
+        <Text c="dimmed">Ninguna importación coincide con la búsqueda.</Text>
+      )}
+
+      {importacionesFiltradas.length > 0 && (
         <Table highlightOnHover>
           <Table.Thead>
             <Table.Tr>
@@ -56,7 +78,7 @@ export function ImportacionesPage() {
             </Table.Tr>
           </Table.Thead>
           <Table.Tbody>
-            {importaciones.map((importacion) => (
+            {importacionesFiltradas.map((importacion) => (
               <Table.Tr
                 key={importacion.id}
                 style={{ cursor: 'pointer' }}
