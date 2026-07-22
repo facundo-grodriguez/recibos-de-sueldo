@@ -28,6 +28,8 @@ export interface EmpleadoConocido {
   cuil: string;
   nombre: string;
   apellido: string;
+  /** Ciclo de vida de la relación laboral (ADR-079) — 'inactivo' dispara un aviso, nunca se reactiva sola. */
+  estado: 'activo' | 'inactivo';
 }
 
 export interface ResultadoReconocimiento {
@@ -97,6 +99,11 @@ export function reconocerEmpleado(
     correcciones.push(
       `${camposCompletados.length === 2 ? 'Nombre y apellido' : camposCompletados[0] === 'nombre' ? 'Nombre' : 'Apellido'} completado${camposCompletados.length === 2 ? 's' : ''} desde el empleado ya registrado`,
     );
+  }
+
+  // ADR-079: reimportar el CUIL de un inactivo nunca lo reactiva solo — solo avisa, la reactivación sigue siendo manual.
+  if (conocido.estado === 'inactivo') {
+    correcciones.push('Este CUIL corresponde a un empleado inactivo — no se reactiva solo, revisar antes de emitir');
   }
 
   return { identidad: completado, correcciones };

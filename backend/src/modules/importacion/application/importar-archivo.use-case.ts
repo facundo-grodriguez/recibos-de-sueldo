@@ -63,7 +63,12 @@ export class ImportarArchivoUseCase {
         ? await this.empleadoRepository.findAllByCuilsAndEmpresa(empresa.id, cuilsDelArchivo)
         : [];
     const indiceEmpleados = indexarEmpleadosConocidos(
-      empleadosConocidos.map((empleado) => ({ cuil: empleado.cuil.value, nombre: empleado.nombre, apellido: empleado.apellido })),
+      empleadosConocidos.map((empleado) => ({
+        cuil: empleado.cuil.value,
+        nombre: empleado.nombre,
+        apellido: empleado.apellido,
+        estado: empleado.estado,
+      })),
     );
 
     const filas: CrearImportacionFilaData[] = filasCanonicas.map((fila) => {

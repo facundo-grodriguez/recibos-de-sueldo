@@ -10,7 +10,9 @@ function identidad(overrides: Partial<IdentidadEmpleado> = {}): IdentidadEmplead
   return { cuil: '20300000003', nombre: 'Marcelo', apellido: 'Ibáñez', ...overrides };
 }
 
-const conocidos: EmpleadoConocido[] = [{ cuil: '20300000003', nombre: 'Marcelo', apellido: 'Ibáñez' }];
+const conocidos: EmpleadoConocido[] = [
+  { cuil: '20300000003', nombre: 'Marcelo', apellido: 'Ibáñez', estado: 'activo' },
+];
 const indice = indexarEmpleadosConocidos(conocidos);
 
 describe('reconocerEmpleado', () => {
@@ -62,5 +64,20 @@ describe('reconocerEmpleado', () => {
 
     expect(resultado.identidad).toMatchObject({ cuil: '', nombre: '', apellido: '' });
     expect(resultado.correcciones).toEqual([]);
+  });
+
+  it('avisa si el CUIL reconocido corresponde a un empleado inactivo, sin reactivarlo solo (ADR-079)', () => {
+    const indiceConInactivo = indexarEmpleadosConocidos([
+      { cuil: '27300000008', nombre: 'Lucía', apellido: 'Fernández', estado: 'inactivo' },
+    ]);
+
+    const resultado = reconocerEmpleado(
+      identidad({ cuil: '27300000008', nombre: 'Lucía', apellido: 'Fernández' }),
+      indiceConInactivo,
+    );
+
+    expect(resultado.correcciones).toContain(
+      'Este CUIL corresponde a un empleado inactivo — no se reactiva solo, revisar antes de emitir',
+    );
   });
 });
