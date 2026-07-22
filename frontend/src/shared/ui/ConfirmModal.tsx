@@ -30,7 +30,14 @@ export function ConfirmModal({
   onCancel,
 }: ConfirmModalProps) {
   return (
-    <Modal opened={opened} onClose={onCancel} title={title} centered>
+    <Modal
+      opened={opened}
+      onClose={onCancel}
+      title={title}
+      centered
+      closeOnEscape={!loading}
+      closeOnClickOutside={!loading}
+    >
       <Text size="sm" mb="lg">
         {message}
       </Text>
