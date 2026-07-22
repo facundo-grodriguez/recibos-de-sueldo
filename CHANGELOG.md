@@ -2,6 +2,24 @@
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/). Este proyecto aún no tiene versiones publicadas (pre-release).
 
+## [Unreleased] — Etapa 2: UX de uso diario (MVP Comercial)
+
+Ajustes de reducción de clics y navegación sobre pantallas que ya existían — sin funcionalidad nueva ni cambios de dominio/arquitectura, sin modificar el layout general de ninguna pantalla. Ver `TODO.md` por las 5 mejoras relevadas y descartadas a propósito para esta etapa (agregarían información/comportamiento nuevo, no solo reducir clics).
+
+### Agregado
+- `autoFocus` en el primer campo de los 8 modales de alta/edición (empleado, empresa, importar archivo, datos de emisión, corregir fila, anular recibo, mapear concepto).
+- Cross-links: cada recibo linkea a su importación de origen ("Ver importación"); cada empleado linkea a su historial de recibos ya filtrado (`?empleadoId=`), que `HistorialRecibosPage` ahora lee para preseleccionar el filtro.
+- Auto-avance: corregir una fila con error salta automáticamente a la próxima (reutiliza el navegador de errores ya existente), en vez de tener que volver a ubicarla a mano.
+- Buscador en `ImportacionesPage` (por archivo, mes o año) — mismo patrón client-side que ya tenía `EmpleadosPage`.
+- Feedback de carga: "Cargando…" en las tablas de Empleados/Importaciones mientras resuelve la query; `loading` en los botones de descarga (individual y ZIP) para evitar doble clic; `EmisionSection` espera a saber si ya hay recibos emitidos antes de mostrar el formulario de emisión.
+- `ConfirmModal`: ya no se cierra con Escape/clic afuera mientras la acción está en curso.
+
+### Corregido
+- `HistorialRecibosPage`: el breadcrumb decía literalmente "Empresa" en vez del nombre real, inconsistente con las pantallas hermanas.
+
+### Verificado
+`tsc`/55 tests frontend en verde. Navegador real contra Postgres real: los 2 cross-links, y el auto-avance (se encontró y corrigió en el momento un bug real de orden de hooks de React introducido durante la propia implementación — hooks después de un `return` condicional en `ImportacionDetailPage`, antes de llegar a probarlo en pantalla).
+
 ## [Unreleased] — Etapa 1: QA funcional completo (MVP Comercial)
 
 Primer recorrido completo del sistema como lo haría un contador usando el producto por primera vez (onboarding desde cero + casos borde + robustez). Ver `KNOWN_BUGS.md` (registro vivo de bugs, con la conclusión GO/NO-GO al principio) y `TODO.md` (mejoras de UX detectadas, no implementadas a propósito).
