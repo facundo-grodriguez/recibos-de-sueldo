@@ -46,7 +46,7 @@ function Formulario({ empresaId, onClose }: { empresaId: string; onClose: () => 
   return (
     <form onSubmit={form.onSubmit(handleSubmit)}>
       <Stack gap="sm">
-        <TextInput label="Nombre" required {...form.getInputProps('nombre')} />
+        <TextInput label="Nombre" required autoFocus {...form.getInputProps('nombre')} />
         <TextInput label="Apellido" required {...form.getInputProps('apellido')} />
         <TextInput label="CUIL" required placeholder="20-12345678-6" {...form.getInputProps('cuil')} />
         <Group justify="flex-end" mt="sm">

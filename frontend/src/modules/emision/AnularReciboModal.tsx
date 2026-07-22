@@ -49,7 +49,7 @@ function Formulario({ empresaId, recibo, onClose }: { empresaId: string; recibo:
         <Text size="sm" c="dimmed">
           Recibo N° {recibo.numero} — {recibo.apellido}, {recibo.nombre}
         </Text>
-        <Textarea label="Motivo" required autosize minRows={2} {...form.getInputProps('motivo')} />
+        <Textarea label="Motivo" required autosize minRows={2} autoFocus {...form.getInputProps('motivo')} />
         <Group justify="flex-end" mt="sm">
           <Button variant="subtle" onClick={onClose} disabled={anular.isPending}>
             Cancelar

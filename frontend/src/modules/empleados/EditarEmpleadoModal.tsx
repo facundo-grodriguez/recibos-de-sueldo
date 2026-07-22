@@ -66,7 +66,7 @@ function Formulario({
   return (
     <form onSubmit={form.onSubmit(handleSubmit)}>
       <Stack gap="sm">
-        <TextInput label="Categoría" {...form.getInputProps('categoria')} />
+        <TextInput label="Categoría" autoFocus {...form.getInputProps('categoria')} />
         <DatePickerInput
           label="Fecha de ingreso"
           clearable

@@ -78,7 +78,7 @@ function EmpresaForm({ empresa, onClose }: { empresa?: Empresa; onClose: () => v
   return (
     <form onSubmit={form.onSubmit(handleSubmit)}>
       <Stack gap="sm">
-        <TextInput label="Razón social" required {...form.getInputProps('razonSocial')} />
+        <TextInput label="Razón social" required autoFocus {...form.getInputProps('razonSocial')} />
         <TextInput label="CUIT" required {...form.getInputProps('cuit')} />
         <TextInput label="Nombre de fantasía" {...form.getInputProps('nombreFantasia')} />
         <TextInput label="Domicilio" {...form.getInputProps('domicilio')} />

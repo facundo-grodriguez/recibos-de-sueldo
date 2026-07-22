@@ -83,7 +83,7 @@ function Formulario({ empresaId, onClose }: { empresaId: string; onClose: () => 
           </Anchor>
         </Text>
         <Group grow>
-          <NumberInput label="Año" required {...form.getInputProps('anio')} />
+          <NumberInput label="Año" required autoFocus {...form.getInputProps('anio')} />
           <Select
             label="Mes"
             required

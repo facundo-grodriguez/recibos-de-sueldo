@@ -84,6 +84,7 @@ function Formulario({
           label="Tipo"
           data={opcionesTipo}
           allowDeselect={false}
+          autoFocus
           {...form.getInputProps('tipo')}
           onChange={(valor) => {
             form.setFieldValue('tipo', valor as DefinirMapeoFormValues['tipo']);

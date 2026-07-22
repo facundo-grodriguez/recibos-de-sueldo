@@ -59,6 +59,7 @@ function Formulario({ empresaId, importacion }: DatosEmisionFormProps) {
             label="Fecha de pago"
             clearable
             valueFormat="DD/MM/YYYY"
+            autoFocus
             {...form.getInputProps('fechaPago')}
           />
           <TextInput label="Lugar de pago" {...form.getInputProps('lugarPago')} />
