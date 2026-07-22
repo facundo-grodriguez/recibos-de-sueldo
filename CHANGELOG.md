@@ -2,6 +2,19 @@
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/). Este proyecto aún no tiene versiones publicadas (pre-release).
 
+## [Unreleased] — Etapa 3: Recuperación de errores del usuario (MVP Comercial)
+
+Cuando el contador se equivoca, ¿tiene un camino para corregirlo sin dejar el sistema en un estado inconsistente? Ver `TODO.md` por las 3 mejoras relevadas y excluidas a propósito de esta etapa.
+
+### Agregado
+- Editar nombre/apellido de un empleado ya creado (`EditarEmpleadoModal`) — el CUIL sigue siendo inmutable (ADR-077, "es la llave"); implementa la decisión de dominio ya fijada ("Alta; corrección manual") que faltaba construir.
+- Pantalla "Conceptos de la empresa" (`ConceptosMapeadosPage`, nuevo botón en `EmpresaHomePage`): lista los conceptos ya mapeados y permite reabrir cualquiera para corregir su clasificación (reutiliza `MapearConceptoModal`, ahora con prop `mapeoExistente` para pre-cargar el valor actual). Cierra un pendiente documentado desde ADR-064.
+- Aviso (no bloqueo) en `ImportacionDetailPage` cuando ya existe otra importación de la misma empresa para el mismo período — puede ser intencional (corrigiendo un archivo anterior), solo advierte antes de confirmar/emitir.
+- Nuevo estado `'descartada'` para importaciones en `previsualizada` (endpoint `POST :id/descartar`, bloqueado si ya está confirmada): permite sacar de la vista activa una importación mal empezada sin borrar el archivo ni las filas. `ImportacionesPage` las oculta por defecto con un switch "Mostrar descartadas" — mismo patrón que "Mostrar inactivos" en Empleados.
+
+### Verificado
+`tsc` backend/frontend en verde. 245 tests backend (36 archivos) + 57 tests frontend (12 archivos) en verde. Navegador real contra Postgres real: edición de nombre/apellido persistida, edición de un concepto ya mapeado con el modal pre-cargado, aviso de período duplicado al reimportar un mes ya existente, y el flujo completo de descartar (botón → confirmación → oculta por defecto → reaparece con el switch).
+
 ## [Unreleased] — Etapa 2: UX de uso diario (MVP Comercial)
 
 Ajustes de reducción de clics y navegación sobre pantallas que ya existían — sin funcionalidad nueva ni cambios de dominio/arquitectura, sin modificar el layout general de ninguna pantalla. Ver `TODO.md` por las 5 mejoras relevadas y descartadas a propósito para esta etapa (agregarían información/comportamiento nuevo, no solo reducir clics).
