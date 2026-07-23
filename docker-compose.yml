@@ -1,13 +1,25 @@
+x-logging: &default-logging
+  # Sin esto, un contenedor que loguea sin parar (ej. un bucle de errores)
+  # llena el disco del servidor con el tiempo — nunca pasó acá, pero es
+  # exactamente el tipo de falla silenciosa que un piloto sin monitoreo
+  # activo no detecta a tiempo.
+  driver: json-file
+  options:
+    max-size: '10m'
+    max-file: '3'
+
 services:
   postgres:
     image: postgres:16-alpine
     restart: unless-stopped
     environment:
       POSTGRES_USER: recibos
-      POSTGRES_PASSWORD: recibos
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Definí POSTGRES_PASSWORD en tu .env}
       POSTGRES_DB: recibos
-    ports:
-      - '5432:5432'
+    # Sin ports: solo alcanzable desde otros contenedores de este compose
+    # (backend), por su nombre de servicio — la base nunca queda expuesta
+    # al host ni a Internet. Para inspeccionarla a mano: `docker compose
+    # exec postgres psql -U recibos`.
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -15,6 +27,7 @@ services:
       interval: 5s
       timeout: 5s
       retries: 10
+    logging: *default-logging
 
   backend:
     build:
@@ -26,11 +39,15 @@ services:
     environment:
       NODE_ENV: production
       PORT: 3000
-      DATABASE_URL: postgresql://recibos:recibos@postgres:5432/recibos?schema=public
+      DATABASE_URL: postgresql://recibos:${POSTGRES_PASSWORD:?Definí POSTGRES_PASSWORD en tu .env}@postgres:5432/recibos?schema=public
       JWT_SECRET: ${JWT_SECRET:?Definí JWT_SECRET en tu .env}
       JWT_EXPIRES_IN: 8h
-    ports:
-      - '3000:3000'
+    # Sin ports: el único camino de entrada es a través de `frontend` (nginx
+    # hace de proxy de /api, ver frontend/nginx.conf) y, delante de todo,
+    # `caddy`. Exponer 3000 directo al host duplicaba la superficie de
+    # ataque que cierra la Tarea 5 (registro público + rate limiting) sin
+    # necesidad — nadie externo debe poder pegarle al backend salteando el
+    # proxy.
     volumes:
       # Los PDF emitidos viven en el filesystem del contenedor
       # (FilesystemAlmacenamientoRecibos, `uploads/recibos/`) — sin este
@@ -38,6 +55,7 @@ services:
       # recibos ya emitidos, dejando registros en la base sin su archivo.
       - backend_uploads:/app/uploads
     command: sh -c "npx prisma migrate deploy && node dist/main.js"
+    logging: *default-logging
 
   frontend:
     build:
@@ -45,9 +63,34 @@ services:
     restart: unless-stopped
     depends_on:
       - backend
+    # Sin ports: ya no es el punto de entrada público (lo es `caddy`, que le
+    # habla por la red interna del compose). nginx sigue sirviendo el SPA y
+    # haciendo de proxy de /api hacia `backend` (ver frontend/nginx.conf).
+    logging: *default-logging
+
+  # Único contenedor con puertos publicados al host: entrada pública HTTPS.
+  # HTTPS automático (Let's Encrypt) sin certbot ni renovación manual — Caddy
+  # lo resuelve solo mientras DOMINIO apunte por DNS a este servidor y los
+  # puertos 80/443 estén abiertos hacia afuera (el 80 hace falta para el
+  # desafío ACME, no solo para redirigir a HTTPS).
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    depends_on:
+      - frontend
+    environment:
+      DOMINIO: ${DOMINIO:?Definí DOMINIO (ej. turecibos.duckdns.org) en tu .env}
     ports:
-      - '5173:80'
+      - '80:80'
+      - '443:443'
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    logging: *default-logging
 
 volumes:
   postgres_data:
   backend_uploads:
+  caddy_data:
+  caddy_config:

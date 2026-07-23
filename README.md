@@ -44,7 +44,13 @@ cp .env.example .env
 |---|---|
 | `VITE_API_URL` | URL base de la API backend (default `http://localhost:3000/api`) |
 
-**`app/.env`** (raíz, ver `.env.example`): usado por `docker-compose.yml` — solo `JWT_SECRET`.
+**`app/.env`** (raíz, ver `.env.example`): usado por `docker-compose.yml`.
+
+| Variable | Descripción |
+|---|---|
+| `JWT_SECRET` | Igual que en `backend/.env` |
+| `POSTGRES_PASSWORD` | Password de Postgres dentro del compose (generar con `openssl rand -base64 24`; nunca el `recibos`/`recibos` de desarrollo) |
+| `DOMINIO` | Dominio público que apunta a este servidor (ej. `turecibos.duckdns.org`) — Caddy lo usa para emitir el certificado HTTPS automáticamente |
 
 ## Cómo ejecutar
 
@@ -71,14 +77,20 @@ Si ya tenés tu propia instancia de PostgreSQL, salteá `npm run db:dev` y apunt
 
 ### Con Docker Compose
 
+Levanta 4 servicios: `postgres` (interno, sin puerto publicado), `backend` (interno), `frontend` (nginx, interno — sirve el SPA y proxea `/api` hacia `backend`) y `caddy` (único servicio con puertos publicados, `80`/`443` — HTTPS automático vía Let's Encrypt).
+
 ```bash
-cp .env.example .env   # completar JWT_SECRET
+cp .env.example .env   # completar JWT_SECRET, POSTGRES_PASSWORD y DOMINIO
 docker compose up --build
 ```
 
-Backend en `http://localhost:3000/api`, frontend en `http://localhost:5173`, Postgres en `localhost:5432`. El comando de arranque del backend (`docker-compose.yml`) corre `prisma migrate deploy` antes de levantar el servidor, así que las tablas quedan creadas automáticamente a partir de `backend/prisma/migrations/`.
+**Antes del primer `up`**, `DOMINIO` (en `.env`) tiene que resolver por DNS a la IP pública de este servidor, y los puertos `80`/`443` tienen que estar abiertos hacia afuera — si no, Caddy no puede completar el desafío ACME y no emite el certificado. Con eso resuelto, la app queda disponible en `https://<DOMINIO>` sin ningún paso manual de TLS.
 
-> **Nota:** `docker-compose.yml` sigue sin probarse de punta a punta en el entorno donde se escribió este proyecto (sin Docker disponible). Sí se hizo una revisión estática completa (Etapa 2 de estabilización, ADR-066) que encontró y corrigió 2 bugs reales sin necesidad de ejecutar Docker: (1) el comando de arranque corre `npx prisma migrate deploy`, pero el CLI de `prisma` vivía en `devDependencies` — la imagen de runtime (`npm ci --omit=dev`) no lo iba a tener disponible; movido a `dependencies`. (2) no había volumen para `uploads/recibos/` (donde viven los PDF emitidos) — cualquier redeploy del contenedor los hubiera borrado, dejando registros en la base sin su archivo; agregado el volumen `backend_uploads`. Además, `VITE_API_URL` del frontend es una variable de build de Vite (se hornea en el bundle al momento de `npm run build`, no se lee en runtime) — el Dockerfile del frontend no la inyecta como build-arg, así que el bundle siempre queda con el valor por defecto (`http://localhost:3000/api`); esto funciona por coincidencia con la topología actual de `docker-compose.yml` (backend mapeado al mismo `localhost` del host), pero se rompería con cualquier otra topología de despliegue — señalado, no corregido, porque no hay evidencia de una topología distinta todavía. Con estas correcciones estáticas, el primer `docker compose up --build` real sigue siendo el próximo punto de verificación pendiente.
+**Para probar el stack completo en una máquina local, sin dominio real:** poné `DOMINIO=localhost` en `.env` — Caddy detecta que no es un dominio público y sirve un certificado autofirmado en `https://localhost` en vez de pedirle uno a Let's Encrypt (el navegador va a advertir que no confía en el certificado, es esperable).
+
+El comando de arranque del backend (`docker-compose.yml`) corre `prisma migrate deploy` antes de levantar el servidor, así que las tablas quedan creadas automáticamente a partir de `backend/prisma/migrations/`.
+
+> **Docker sí se probó de punta a punta contra el stack real** (ADR-067, 2026-07-19): `docker compose up --build` levantando los 3 servicios de entonces (`postgres`/`backend`/`frontend`) y un flujo completo real por HTTP — registro → login → alta de empresa → importar Excel → mapear concepto → confirmar → emitir recibo → descargar PDF — funcionó de punta a punta, incluida la persistencia del volumen `backend_uploads` ante un reinicio del contenedor. La topología cambió después (Tarea 4 del plan de piloto, 2026-07-22): se agregó `caddy` como entrada pública con HTTPS, se sacaron los puertos publicados de `postgres`/`backend`/`frontend` (ya no hace falta que estén expuestos al host), `VITE_API_URL` pasó a ser relativo (`/api`, vía `frontend/.env.production`, ver nginx.conf) en vez de depender de que backend y frontend compartan `localhost`, y la password de Postgres pasó a venir de `POSTGRES_PASSWORD` en vez de estar hardcodeada. Estos cambios no se volvieron a correr contra un `docker compose up --build` real en esta sesión (sin Docker Desktop disponible en este entorno) — si algo no levanta, es acá donde hay que mirar primero.
 
 ### Cuando cambies el schema de Prisma
 
@@ -252,7 +264,11 @@ npm run lint       # oxlint
 
 ## Cómo hacer deploy
 
-Cada servicio tiene su `Dockerfile` (multi-stage, imagen final liviana). `docker-compose.yml` es la referencia de orquestación para un único host; para producción en la nube (proveedor a definir), cada imagen se construye y despliega de forma independiente detrás de un balanceador, con `DATABASE_URL`/`JWT_SECRET` provistos como secretos de la plataforma — nunca hardcodeados ni en el repositorio.
+Para el piloto (un único host, un único cliente): `docker compose up --build -d` sobre este mismo `docker-compose.yml`, con `.env` completo (`JWT_SECRET`, `POSTGRES_PASSWORD`, `DOMINIO`) — ver la sección "Con Docker Compose" más arriba. Requisitos del host: Docker + Docker Compose instalados, puertos `80`/`443` abiertos, y el dominio de `DOMINIO` apuntando por DNS a la IP pública antes de levantar el stack (si no hay un dominio propio todavía, un subdominio gratis de DuckDNS alcanza).
+
+`postgres_data` (datos de la base) y `caddy_data` (certificados TLS, se renuevan solos) son volúmenes con nombre — sobreviven a un `docker compose down` normal; solo se pierden con `docker compose down -v` (evitar, salvo reinstalación completa a propósito).
+
+Si en el futuro se necesita más de una instancia o un proveedor cloud gestionado, cada servicio ya tiene su `Dockerfile` (multi-stage, imagen final liviana) y puede desplegarse de forma independiente detrás de un balanceador, con `DATABASE_URL`/`JWT_SECRET`/`POSTGRES_PASSWORD` provistos como secretos de la plataforma — nunca hardcodeados ni en el repositorio. No es el camino elegido para el piloto (un solo host es más simple y suficiente para un cliente).
 
 ## Estado
 

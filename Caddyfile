@@ -1,0 +1,10 @@
+# Configuración de Caddy: HTTPS automático (Let's Encrypt) + reverse proxy
+# hacia el frontend (que a su vez proxea /api hacia el backend, ver
+# frontend/nginx.conf). DOMINIO se define en .env — ver .env.example.
+#
+# Requisito para que el certificado se emita: el dominio tiene que resolver
+# por DNS a la IP pública de este servidor ANTES de levantar el stack, y los
+# puertos 80/443 tienen que estar abiertos en el firewall/proveedor de nube.
+{$DOMINIO} {
+	reverse_proxy frontend:80
+}
