@@ -16,7 +16,8 @@
     "prisma:migrate": "prisma migrate dev",
     "db:dev": "node scripts/dev-db.mjs",
     "backup": "node scripts/backup.mjs",
-    "restore": "node scripts/restore.mjs"
+    "restore": "node scripts/restore.mjs",
+    "reset-password": "node scripts/reset-password.mjs"
   },
   "dependencies": {
     "@nestjs/common": "^10.4.0",

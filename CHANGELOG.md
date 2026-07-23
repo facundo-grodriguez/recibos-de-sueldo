@@ -2,7 +2,23 @@
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/). Este proyecto aún no tiene versiones publicadas (pre-release).
 
-## [Unreleased] — Etapa 3: Recuperación de errores del usuario (MVP Comercial)
+## [Unreleased] — Sprint al primer cliente piloto (Tareas 2 a 7 del plan)
+
+Cierra las 7 tareas bloqueantes identificadas en la auditoría previa al primer cliente (`esto-va-a-ser-adaptive-seahorse.md`, fuera de este repo) — absorbe y cierra las Etapas 4, 5 y 6 del plan de MVP Comercial. D0 (3 preguntas al prospecto) y Tarea 1 (acuerdo legal, con un tercero) quedan fuera de este changelog por no ser cambios de código.
+
+### Agregado
+- **PDFs de muestra reales** (Tarea 2): 4 casos generados por el flujo real del sistema (no maquetados a mano) — mensual estándar, antigüedad + presentismo, las 7 categorías de contribución patronal en un mismo recibo, y un caso borde (monto $0, monto negativo, Impuesto a las Ganancias). Ver `muestras-pdf-piloto/`.
+- **Validación de datos legalmente obligatorios antes de emitir** (Tarea 3): domicilio de la empresa (error global) y categoría laboral + fecha de ingreso de cada empleado activo (error por empleado) ahora bloquean la emisión si faltan — antes el recibo se generaba igual, con esos campos vacíos y sin ningún aviso. `domicilio` pasa a ser obligatorio al crear una empresa nueva.
+- **Despliegue instalable y cifrado** (Tarea 4): `caddy` nuevo en `docker-compose.yml` — único servicio con puertos públicos (80/443), HTTPS automático vía Let's Encrypt. `nginx` proxea `/api` hacia el backend; `VITE_API_URL` pasa a ser relativo (`/api`, vía `frontend/.env.production`) — el mismo build sirve para cualquier dominio, sin rebuild por instalación. Postgres y backend dejan de exponer puertos al host; password de Postgres por variable de entorno en vez de hardcodeada; rotación de logs de Docker en los 4 servicios.
+- **Registro cerrado + rate limiting** (Tarea 5): `POST /auth/register` exige un token de administración (`AdminRegistrationGuard`); `POST /auth/login` limitado a 5 intentos/minuto por IP (`@nestjs/throttler`). Se sacó el link público de "Crear cuenta nueva" del login.
+- **Backup programado + restauración probada** (Tarea 6): servicio `backup` en `docker-compose.yml` (backup automático cada 24h, con retención de los últimos 14); copia off-site opcional vía `rclone`; script `restore.mjs` nuevo (antes la restauración era manual, improvisada cada vez). Probado real contra Postgres real: backup → restauración en una base limpia → hash del PDF restaurado coincide byte a byte.
+- **Procedimiento de reseteo de contraseña** (Tarea 7): `backend/scripts/reset-password.mjs` (hashea con el mismo argon2 que usa el login, no un `UPDATE` a mano) + `OPERACION.md` nuevo, con el procedimiento de alta de cuenta y reseteo de password. Probado real: contraseña vieja rechazada, nueva funcionando.
+
+### Corregido
+- README: la nota sobre Docker decía "sigue sin probarse" citando una revisión estática vieja — corregida para citar ADR-067 (prueba real de punta a punta ya hecha), con la topología nueva de la Tarea 4 documentada aparte.
+
+### Verificado
+`tsc` backend/frontend en verde. 256 tests backend (37 archivos, +11 sobre el conteo anterior) en verde — sin suite de e2e de frontend corrida completa en esta sesión por inestabilidad del entorno de test local (ver nota en la sesión), pero `tsc` del frontend sin errores. Contra Postgres real (`embedded-postgres`, sin Docker): flujo completo de emisión con validación nueva bloqueando y desbloqueando según corresponda; registro rechazado sin token y aceptado con el correcto; 6 intentos de login seguidos → 429 en el 6°; backup real + restauración real en una base limpia con verificación de hash byte a byte; reseteo de contraseña real con verificación de que la vieja deja de funcionar. Verificado también en navegador real (Playwright): formulario de empresa exige domicilio, login sin el link de registro, formulario de registro con el campo de token funcionando de punta a punta. **No verificado**: el stack completo vía `docker compose up --build` (Docker Desktop no disponible en este entorno) — documentado explícitamente como pendiente en el README, no dado por probado.
 
 Cuando el contador se equivoca, ¿tiene un camino para corregirlo sin dejar el sistema en un estado inconsistente? Ver `TODO.md` por las 3 mejoras relevadas y excluidas a propósito de esta etapa.
 

@@ -283,8 +283,9 @@ DATABASE_URL="postgresql://..." npm run restore -- backups/<timestamp>   # 2. da
 
 Alcance deliberadamente mínimo para un piloto acompañado (una instancia, un cliente) — no es endurecimiento para Internet abierta (eso queda para cuando haya evidencia de que hace falta, ver más abajo):
 
-- **Registro cerrado.** `POST /auth/register` exige el header `X-Admin-Registration-Token` (`AdminRegistrationGuard`, comparación en tiempo constante) — sin él, 403. Quien administra la instancia crea cada cuenta nueva; no hay alta pública. La pantalla `/register` del frontend sigue existiendo (para uso propio, pidiendo el token en el formulario), pero ya no está enlazada desde el login.
+- **Registro cerrado.** `POST /auth/register` exige el header `X-Admin-Registration-Token` (`AdminRegistrationGuard`, comparación en tiempo constante) — sin él, 403. Quien administra la instancia crea cada cuenta nueva; no hay alta pública. La pantalla `/register` del frontend sigue existiendo (para uso propio, pidiendo el token en el formulario), pero ya no está enlazada desde el login. Procedimiento paso a paso: **`OPERACION.md`**.
 - **Rate limiting en login.** `POST /auth/login` acepta como máximo 5 intentos por minuto por IP (`@nestjs/throttler`, límite propio más estricto que el default global de 60/min). Sin esto, una password de 8 caracteres sin bloqueo de cuenta quedaba abierta a fuerza bruta.
+- **Sin recuperación de contraseña por email.** No hay esa infraestructura (decisión explícita, ver `OPERACION.md`) — si alguien queda afuera de su cuenta, `backend/scripts/reset-password.mjs` la resetea a mano, con el mismo hash (argon2) que usa el login. Procedimiento probado real: ver `OPERACION.md`.
 
 **Explícitamente fuera de este alcance** (Post Piloto, cuando haya más de un cliente o la instancia deje de ser conocida solo por quien la opera): Helmet, CSP, HSTS, CORS afinado por dominio, WAF, auditoría continua de dependencias. La superficie real hoy es una instancia, con pocas cuentas, en un dominio que nadie más conoce.
 
