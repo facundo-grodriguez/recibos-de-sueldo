@@ -324,6 +324,7 @@ export function generarHtmlRecibo(snapshot: ReciboSnapshot): string {
     ${campo('Fecha de ingreso', empleado.fechaIngreso)}
     ${campo('Antigüedad', empleado.antiguedad)}
     ${campo('Lugar y fecha de pago', `${periodo.lugarPago} — ${periodo.fechaPago}`)}
+    ${campo('Pago de cargas sociales', `${periodo.lugarPagoCargasSociales} — ${periodo.fechaPagoCargasSociales}`)}
   </div>
 
   <h2>Contribuciones del empleador</h2>
