@@ -41,6 +41,7 @@ class EmpresaRepositoryFake implements EmpresaRepository {
       usuarioId: USUARIO_ID,
       razonSocial: 'Acme SA',
       cuit: '20123456786',
+      domicilio: 'Av. Siempre Viva 742',
     });
   }
 
@@ -289,7 +290,7 @@ describe('EmitirRecibosUseCase', () => {
     generadorPdf = new GeneradorPdfFake();
     almacenamiento = new AlmacenamientoRecibosFake();
 
-    const validarImportacion = new ValidarImportacionUseCase(empresaRepository, importacionRepository);
+    const validarImportacion = new ValidarImportacionUseCase(empresaRepository, importacionRepository, empleadoRepository);
 
     useCase = new EmitirRecibosUseCase(
       empresaRepository,
@@ -382,6 +383,8 @@ describe('EmitirRecibosUseCase', () => {
         apellido: 'Gomez',
         cuil: CUIL_ANA,
         estado: 'activo',
+        categoria: 'Administrativo',
+        fechaIngreso: new Date('2024-01-10'),
       }),
     );
     importacionRepository.seed(
@@ -478,6 +481,8 @@ describe('EmitirRecibosUseCase', () => {
         apellido: 'Gomez',
         cuil: CUIL_ANA,
         estado: 'activo',
+        categoria: 'Administrativo',
+        fechaIngreso: new Date('2024-01-10'),
       }),
     );
     importacionRepository.seed(

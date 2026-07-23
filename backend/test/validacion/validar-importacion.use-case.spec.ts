@@ -2,6 +2,8 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { NotFoundError } from '../../src/shared/errors/not-found-error';
 import { ClasificacionConcepto } from '../../src/shared/value-objects/clasificacion-concepto';
 import { ValidarImportacionUseCase } from '../../src/modules/validacion/application/validar-importacion.use-case';
+import { Empleado } from '../../src/modules/empleados/domain/empleado.entity';
+import { EmpleadoRepository } from '../../src/modules/empleados/domain/empleado.repository';
 import { Empresa } from '../../src/modules/empresas/domain/empresa.entity';
 import { EmpresaRepository } from '../../src/modules/empresas/domain/empresa.repository';
 import { Importacion } from '../../src/modules/importacion/domain/importacion.entity';
@@ -15,6 +17,8 @@ const CUIL_B = '20123456786';
 
 class EmpresaRepositoryFake implements EmpresaRepository {
   visible = true;
+  /** La mayoría de los tests no está probando la regla de domicilio: arranca completo. */
+  domicilio: string | null = 'Av. Siempre Viva 742';
 
   async create(): Promise<Empresa> {
     throw new Error('no usado en este test');
@@ -31,10 +35,58 @@ class EmpresaRepositoryFake implements EmpresaRepository {
       usuarioId: USUARIO_ID,
       razonSocial: 'Acme SA',
       cuit: '20123456786',
+      domicilio: this.domicilio,
     });
   }
 
   async actualizar(): Promise<Empresa> {
+    throw new Error('no usado en este test');
+  }
+}
+
+/** Ficha completa por defecto: la mayoría de los tests no está probando la regla de ficha incompleta. */
+function empleadoCompleto(cuil: string, overrides: Partial<Parameters<typeof Empleado.create>[0]> = {}): Empleado {
+  return Empleado.create({
+    id: `empleado-${cuil}`,
+    empresaId: EMPRESA_ID,
+    nombre: 'Empleado',
+    apellido: 'Test',
+    cuil,
+    estado: 'activo',
+    categoria: 'Administrativo A',
+    fechaIngreso: new Date('2020-01-01'),
+    ...overrides,
+  });
+}
+
+class EmpleadoRepositoryFake implements EmpleadoRepository {
+  empleados: Empleado[] = [];
+
+  async create(): Promise<Empleado> {
+    throw new Error('no usado en este test');
+  }
+
+  async crearVarios(): Promise<void> {
+    throw new Error('no usado en este test');
+  }
+
+  async findAllByEmpresa(): Promise<Empleado[]> {
+    throw new Error('no usado en este test');
+  }
+
+  async findByCuilAndEmpresa(): Promise<Empleado | null> {
+    throw new Error('no usado en este test');
+  }
+
+  async findAllByCuilsAndEmpresa(empresaId: string, cuils: string[]): Promise<Empleado[]> {
+    return this.empleados.filter((e) => e.empresaId === empresaId && cuils.includes(e.cuil.value));
+  }
+
+  async findByIdAndEmpresa(): Promise<Empleado | null> {
+    throw new Error('no usado en este test');
+  }
+
+  async actualizar(): Promise<Empleado> {
     throw new Error('no usado en este test');
   }
 }
@@ -125,15 +177,18 @@ function fila(props: {
 describe('ValidarImportacionUseCase', () => {
   let empresaRepository: EmpresaRepositoryFake;
   let importacionRepository: ImportacionRepositoryFake;
+  let empleadoRepository: EmpleadoRepositoryFake;
   let useCase: ValidarImportacionUseCase;
 
   beforeEach(() => {
     empresaRepository = new EmpresaRepositoryFake();
     importacionRepository = new ImportacionRepositoryFake();
-    useCase = new ValidarImportacionUseCase(empresaRepository, importacionRepository);
+    empleadoRepository = new EmpleadoRepositoryFake();
+    useCase = new ValidarImportacionUseCase(empresaRepository, importacionRepository, empleadoRepository);
   });
 
   it('calcula totales y permite emitir cuando todo está clasificado y sin período anterior', async () => {
+    empleadoRepository.empleados.push(empleadoCompleto(CUIL_A));
     importacionRepository.importaciones.push(
       Importacion.create({
         id: 'importacion-actual',
@@ -186,6 +241,7 @@ describe('ValidarImportacionUseCase', () => {
   });
 
   it('bloquea un empleado que no tiene ningún concepto remunerativo', async () => {
+    empleadoRepository.empleados.push(empleadoCompleto(CUIL_A));
     importacionRepository.importaciones.push(
       Importacion.create({
         id: 'importacion-actual',
@@ -211,6 +267,7 @@ describe('ValidarImportacionUseCase', () => {
   });
 
   it('advierte si el neto varía mucho respecto del período confirmado anterior', async () => {
+    empleadoRepository.empleados.push(empleadoCompleto(CUIL_A));
     importacionRepository.importaciones.push(
       Importacion.create({
         id: 'importacion-anterior',
@@ -248,6 +305,7 @@ describe('ValidarImportacionUseCase', () => {
   });
 
   it('no advierte si la única importación anterior tiene ese empleado sin clasificar', async () => {
+    empleadoRepository.empleados.push(empleadoCompleto(CUIL_A));
     importacionRepository.importaciones.push(
       Importacion.create({
         id: 'importacion-anterior',
@@ -280,6 +338,88 @@ describe('ValidarImportacionUseCase', () => {
     });
 
     expect(resultado.empleados[0].advertencias).toHaveLength(0);
+  });
+
+  it('bloquea globalmente si la empresa no tiene domicilio cargado', async () => {
+    empresaRepository.domicilio = null;
+    empleadoRepository.empleados.push(empleadoCompleto(CUIL_A));
+    importacionRepository.importaciones.push(
+      Importacion.create({
+        id: 'importacion-actual',
+        empresaId: EMPRESA_ID,
+        usuarioId: USUARIO_ID,
+        anio: 2026,
+        mes: 7,
+        nombreArchivo: 'julio.csv',
+        estado: 'confirmada',
+        fechaImportacion: new Date('2026-07-17T00:00:00.000Z'),
+        filas: [fila({ id: 'f1', cuil: CUIL_A, monto: 1000, tipo: 'remunerativo' })],
+      }),
+    );
+
+    const resultado = await useCase.execute({
+      importacionId: 'importacion-actual',
+      empresaId: EMPRESA_ID,
+      usuarioId: USUARIO_ID,
+    });
+
+    expect(resultado.puedeEmitirse).toBe(false);
+    expect(resultado.erroresGlobales.some((e) => e.includes('domicilio'))).toBe(true);
+  });
+
+  it('bloquea un empleado activo sin categoría o fecha de ingreso cargadas', async () => {
+    empleadoRepository.empleados.push(empleadoCompleto(CUIL_A, { categoria: null, fechaIngreso: null }));
+    importacionRepository.importaciones.push(
+      Importacion.create({
+        id: 'importacion-actual',
+        empresaId: EMPRESA_ID,
+        usuarioId: USUARIO_ID,
+        anio: 2026,
+        mes: 7,
+        nombreArchivo: 'julio.csv',
+        estado: 'confirmada',
+        fechaImportacion: new Date('2026-07-17T00:00:00.000Z'),
+        filas: [fila({ id: 'f1', cuil: CUIL_A, monto: 1000, tipo: 'remunerativo' })],
+      }),
+    );
+
+    const resultado = await useCase.execute({
+      importacionId: 'importacion-actual',
+      empresaId: EMPRESA_ID,
+      usuarioId: USUARIO_ID,
+    });
+
+    expect(resultado.puedeEmitirse).toBe(false);
+    expect(resultado.empleados[0].errores).toContain('Falta la categoría laboral en la ficha del empleado');
+    expect(resultado.empleados[0].errores).toContain('Falta la fecha de ingreso en la ficha del empleado');
+  });
+
+  it('no bloquea por ficha incompleta si el empleado está inactivo (no se le emite recibo)', async () => {
+    empleadoRepository.empleados.push(
+      empleadoCompleto(CUIL_A, { categoria: null, fechaIngreso: null, estado: 'inactivo' }),
+    );
+    importacionRepository.importaciones.push(
+      Importacion.create({
+        id: 'importacion-actual',
+        empresaId: EMPRESA_ID,
+        usuarioId: USUARIO_ID,
+        anio: 2026,
+        mes: 7,
+        nombreArchivo: 'julio.csv',
+        estado: 'confirmada',
+        fechaImportacion: new Date('2026-07-17T00:00:00.000Z'),
+        filas: [fila({ id: 'f1', cuil: CUIL_A, monto: 1000, tipo: 'remunerativo' })],
+      }),
+    );
+
+    const resultado = await useCase.execute({
+      importacionId: 'importacion-actual',
+      empresaId: EMPRESA_ID,
+      usuarioId: USUARIO_ID,
+    });
+
+    expect(resultado.puedeEmitirse).toBe(true);
+    expect(resultado.empleados[0].errores).toHaveLength(0);
   });
 
   it('rechaza si la empresa no pertenece al usuario', async () => {

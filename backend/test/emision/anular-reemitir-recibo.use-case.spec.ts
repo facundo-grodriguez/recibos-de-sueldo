@@ -45,7 +45,13 @@ class EmpresaRepositoryFake implements EmpresaRepository {
 
   async findByIdAndUsuario(id: string, usuarioId: string): Promise<Empresa | null> {
     if (!this.visible || id !== EMPRESA_ID || usuarioId !== USUARIO_ID) return null;
-    return Empresa.create({ id: EMPRESA_ID, usuarioId: USUARIO_ID, razonSocial: 'Acme SA', cuit: '20123456786' });
+    return Empresa.create({
+      id: EMPRESA_ID,
+      usuarioId: USUARIO_ID,
+      razonSocial: 'Acme SA',
+      cuit: '20123456786',
+      domicilio: 'Av. Siempre Viva 742',
+    });
   }
 
   async actualizar(): Promise<Empresa> {
@@ -402,7 +408,7 @@ describe('ReemitirReciboUseCase', () => {
     generadorPdf = new GeneradorPdfFake();
     almacenamiento = new AlmacenamientoRecibosFake();
 
-    const validarImportacion = new ValidarImportacionUseCase(empresaRepository, importacionRepository);
+    const validarImportacion = new ValidarImportacionUseCase(empresaRepository, importacionRepository, empleadoRepository);
     useCase = new ReemitirReciboUseCase(
       empresaRepository,
       importacionRepository,

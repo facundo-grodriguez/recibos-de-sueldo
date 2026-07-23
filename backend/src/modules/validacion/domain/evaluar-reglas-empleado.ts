@@ -9,6 +9,17 @@ export interface ReglasEmpleadoResultado {
 }
 
 /**
+ * Ficha del trabajador a validar (categoría laboral y fecha de ingreso), o
+ * `null` cuando no corresponde exigirla — hoy el único caso es un empleado
+ * inactivo: no se le emite recibo (ver `EmitirRecibosUseCase`), así que no
+ * corresponde bloquear la importación por su ficha incompleta.
+ */
+export interface FichaEmpleadoValidacion {
+  categoria: string | null;
+  fechaIngreso: Date | null;
+}
+
+/**
  * Reglas de negocio de Validación (Anexo III) para un empleado dentro de una
  * importación. `netoAnterior` es el neto de ese mismo empleado en el período
  * confirmado comparable más reciente, o null si no hay uno.
@@ -16,6 +27,7 @@ export interface ReglasEmpleadoResultado {
 export function evaluarReglasEmpleado(
   totales: TotalesEmpleado,
   netoAnterior: number | null,
+  ficha: FichaEmpleadoValidacion | null,
 ): ReglasEmpleadoResultado {
   const errores: string[] = [];
   const advertencias: string[] = [];
@@ -26,6 +38,18 @@ export function evaluarReglasEmpleado(
 
   if (totales.neto < 0) {
     errores.push(`El neto calculado es negativo (${totales.neto})`);
+  }
+
+  // Categoría laboral y fecha de ingreso son parte de la información mínima
+  // para reconstruir el Anexo III (docs/modelo-funcional-anexo-iii.md,
+  // sección 10) — a diferencia de legajo/banco, que siguen siendo opcionales.
+  if (ficha) {
+    if (!ficha.categoria) {
+      errores.push('Falta la categoría laboral en la ficha del empleado');
+    }
+    if (!ficha.fechaIngreso) {
+      errores.push('Falta la fecha de ingreso en la ficha del empleado');
+    }
   }
 
   if (netoAnterior !== null && netoAnterior !== 0) {
