@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { Link, useNavigate } from 'react-router';
-import { Alert, Anchor, Button, Paper, PasswordInput, Stack, TextInput, Title } from '@mantine/core';
+import { useNavigate } from 'react-router';
+import { Alert, Button, Paper, PasswordInput, Stack, TextInput, Title } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { ApiError } from '../../shared/api/http';
 import { useAuth } from '../../shared/auth/AuthContext';
@@ -58,9 +58,6 @@ export function LoginPage() {
               <Button type="submit" loading={loading} fullWidth>
                 Ingresar
               </Button>
-              <Anchor component={Link} to="/register" size="sm" ta="center">
-                Crear una cuenta nueva
-              </Anchor>
             </Stack>
           </form>
         </Stack>

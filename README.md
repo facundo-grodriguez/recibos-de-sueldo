@@ -37,6 +37,7 @@ cp .env.example .env
 | `DATABASE_URL` | Cadena de conexión PostgreSQL |
 | `JWT_SECRET` | Secreto para firmar JWT (mínimo 16 caracteres, generar con `openssl rand -base64 32`) |
 | `JWT_EXPIRES_IN` | Expiración del token (default `8h`) |
+| `ADMIN_REGISTRATION_TOKEN` | Requerido para crear cuentas (`POST /auth/register`, header `X-Admin-Registration-Token`) — el registro está cerrado al público, ver "Seguridad" más abajo |
 
 **`frontend/.env`** (ver `frontend/.env.example`):
 
@@ -261,6 +262,15 @@ npm run lint       # oxlint
 **Restaurar** es intencionalmente manual, no un script automático (una restauración es una operación rara y de alto impacto — no conviene automatizar el paso destructivo): recrear la base con `prisma migrate deploy`, cargar cada `.json` con un script puntual de `prisma.<tabla>.createMany()` en el orden que respeta las referencias (`usuario` → `empresa` → `empleado`/`importacion` → `importacionFila`/`perfilMapeoConcepto`/`recibo` → `auditLog`), y copiar `uploads-recibos/` de vuelta a `backend/uploads/recibos/`.
 
 **Con Docker Compose (producción)**: no probado de punta a punta en este entorno (mismo motivo que la nota de Docker más abajo), pero el camino estándar es `docker compose exec postgres pg_dump -U recibos recibos > backup.sql` (la imagen oficial de Postgres sí incluye `pg_dump`) en vez del script de arriba, combinado con una copia del volumen `backend_uploads` por el mismo motivo (los PDF no son reconstruibles). Automatizar esto con una tarea programada es trabajo de la fase de infraestructura real, cuando exista un servidor de producción que proteger — no antes.
+
+## Seguridad
+
+Alcance deliberadamente mínimo para un piloto acompañado (una instancia, un cliente) — no es endurecimiento para Internet abierta (eso queda para cuando haya evidencia de que hace falta, ver más abajo):
+
+- **Registro cerrado.** `POST /auth/register` exige el header `X-Admin-Registration-Token` (`AdminRegistrationGuard`, comparación en tiempo constante) — sin él, 403. Quien administra la instancia crea cada cuenta nueva; no hay alta pública. La pantalla `/register` del frontend sigue existiendo (para uso propio, pidiendo el token en el formulario), pero ya no está enlazada desde el login.
+- **Rate limiting en login.** `POST /auth/login` acepta como máximo 5 intentos por minuto por IP (`@nestjs/throttler`, límite propio más estricto que el default global de 60/min). Sin esto, una password de 8 caracteres sin bloqueo de cuenta quedaba abierta a fuerza bruta.
+
+**Explícitamente fuera de este alcance** (Post Piloto, cuando haya más de un cliente o la instancia deje de ser conocida solo por quien la opera): Helmet, CSP, HSTS, CORS afinado por dominio, WAF, auditoría continua de dependencias. La superficie real hoy es una instancia, con pocas cuentas, en un dominio que nadie más conoce.
 
 ## Cómo hacer deploy
 

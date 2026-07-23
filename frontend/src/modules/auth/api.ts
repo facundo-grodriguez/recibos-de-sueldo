@@ -20,8 +20,10 @@ export function login(email: string, password: string): Promise<LoginResponse> {
 }
 
 export function register(datos: RegisterFormValues): Promise<RegisterResponse> {
+  const { adminToken, ...body } = datos;
   return request<RegisterResponse>('/auth/register', {
     method: 'POST',
-    body: datos,
+    body,
+    headers: { 'X-Admin-Registration-Token': adminToken },
   });
 }

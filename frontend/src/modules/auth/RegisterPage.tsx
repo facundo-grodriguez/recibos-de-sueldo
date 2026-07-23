@@ -17,7 +17,7 @@ export function RegisterPage() {
   const [terminosAbiertos, setTerminosAbiertos] = useState(false);
 
   const form = useForm<RegisterFormValues>({
-    initialValues: { email: '', nombre: '', password: '', aceptaTerminos: false },
+    initialValues: { email: '', nombre: '', password: '', aceptaTerminos: false, adminToken: '' },
     validate: zodValidate(registerSchema),
   });
 
@@ -43,11 +43,16 @@ export function RegisterPage() {
           <Title order={2} ta="center">
             Recibos — Crear cuenta
           </Title>
+          <Text size="xs" c="dimmed" ta="center">
+            Solo para quien administra la instancia — hace falta el token de administración
+            (`ADMIN_REGISTRATION_TOKEN` del servidor).
+          </Text>
           <form onSubmit={form.onSubmit(handleSubmit)}>
             <Stack gap="sm">
               <TextInput label="Nombre" required {...form.getInputProps('nombre')} />
               <TextInput label="Email" type="email" required {...form.getInputProps('email')} />
               <PasswordInput label="Contraseña" required {...form.getInputProps('password')} />
+              <PasswordInput label="Token de administración" required {...form.getInputProps('adminToken')} />
               <Checkbox
                 label={
                   <Text size="sm">
