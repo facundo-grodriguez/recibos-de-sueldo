@@ -20,7 +20,11 @@ export const editarEmpleadoSchema = z.object({
   nombre: z.string().min(1, 'El nombre no puede quedar vacío').optional(),
   apellido: z.string().min(1, 'El apellido no puede quedar vacío').optional(),
   categoria: z.string().optional(),
-  fechaIngreso: z.coerce.date().nullable().optional(),
+  fechaIngreso: z.coerce
+    .date()
+    .nullable()
+    .optional()
+    .refine((fecha) => !fecha || fecha <= new Date(), 'La fecha de ingreso no puede ser posterior a hoy'),
   legajo: z.string().optional(),
   banco: z.string().optional(),
 });

@@ -72,6 +72,11 @@ model Empleado {
   recibos Recibo[]
 
   @@unique([empresaId, cuil])
+  // Dos empleados de la misma empresa nunca comparten legajo (Postgres no
+  // choca dos NULL entre sí, así que los que todavía no tienen legajo cargado
+  // conviven sin problema — ver ActualizarEmpleadoUseCase para el mensaje
+  // de error legible antes de llegar a este constraint).
+  @@unique([empresaId, legajo])
   @@index([empresaId])
   @@map("empleados")
 }

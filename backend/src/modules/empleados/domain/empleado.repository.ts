@@ -32,6 +32,8 @@ export interface EmpleadoRepository {
   /** Todos los empleados de la empresa cuyo CUIL esté en la lista, en una única consulta. */
   findAllByCuilsAndEmpresa(empresaId: string, cuils: string[]): Promise<Empleado[]>;
   findByIdAndEmpresa(id: string, empresaId: string): Promise<Empleado | null>;
+  /** Para validar unicidad de legajo dentro de la empresa antes de guardar (ver ActualizarEmpleadoUseCase). */
+  findByLegajoAndEmpresa(empresaId: string, legajo: string): Promise<Empleado | null>;
   actualizar(id: string, data: ActualizarEmpleadoData): Promise<Empleado>;
 }
 

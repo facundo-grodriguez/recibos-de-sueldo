@@ -1,4 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
+import { DomainError } from '../../../shared/errors/domain-error';
 import { NotFoundError } from '../../../shared/errors/not-found-error';
 import { EMPRESA_REPOSITORY, EmpresaRepository } from '../../empresas/domain/empresa.repository';
 import { Empleado } from '../domain/empleado.entity';
@@ -32,6 +33,19 @@ export class ActualizarEmpleadoUseCase {
     const empleado = await this.empleadoRepository.findByIdAndEmpresa(input.empleadoId, empresa.id);
     if (!empleado) {
       throw new NotFoundError(`Empleado "${input.empleadoId}" no encontrado`);
+    }
+
+    if (input.fechaIngreso && input.fechaIngreso > new Date()) {
+      throw new DomainError('La fecha de ingreso no puede ser posterior a hoy');
+    }
+
+    if (input.legajo) {
+      const otroConMismoLegajo = await this.empleadoRepository.findByLegajoAndEmpresa(empresa.id, input.legajo);
+      if (otroConMismoLegajo && otroConMismoLegajo.id !== empleado.id) {
+        throw new DomainError(
+          `El legajo "${input.legajo}" ya está asignado a ${otroConMismoLegajo.apellido}, ${otroConMismoLegajo.nombre}`,
+        );
+      }
     }
 
     return this.empleadoRepository.actualizar(empleado.id, {

@@ -61,6 +61,11 @@ export class PrismaEmpleadoRepository implements EmpleadoRepository {
     return registro ? Empleado.create(registro) : null;
   }
 
+  async findByLegajoAndEmpresa(empresaId: string, legajo: string): Promise<Empleado | null> {
+    const registro = await this.prisma.empleado.findFirst({ where: { empresaId, legajo } });
+    return registro ? Empleado.create(registro) : null;
+  }
+
   async actualizar(id: string, data: ActualizarEmpleadoData): Promise<Empleado> {
     const registro = await this.prisma.empleado.update({
       where: { id },

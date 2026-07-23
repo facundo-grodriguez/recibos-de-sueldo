@@ -34,6 +34,8 @@ class EmpresaRepositoryFake implements EmpresaRepository {
 class EmpleadoRepositoryFake implements EmpleadoRepository {
   empleado: Empleado | null = null;
   ultimaActualizacion: ActualizarEmpleadoData | null = null;
+  /** Otro empleado de la empresa que ya tiene un legajo asignado, para simular el conflicto de unicidad. */
+  otroEmpleadoConLegajo: Empleado | null = null;
 
   async create(): Promise<Empleado> {
     throw new Error('no usado en este test');
@@ -58,6 +60,16 @@ class EmpleadoRepositoryFake implements EmpleadoRepository {
   async findByIdAndEmpresa(id: string, empresaId: string): Promise<Empleado | null> {
     if (!this.empleado || this.empleado.id !== id || this.empleado.empresaId !== empresaId) return null;
     return this.empleado;
+  }
+
+  async findByLegajoAndEmpresa(empresaId: string, legajo: string): Promise<Empleado | null> {
+    if (this.otroEmpleadoConLegajo?.empresaId === empresaId && this.otroEmpleadoConLegajo.legajo === legajo) {
+      return this.otroEmpleadoConLegajo;
+    }
+    if (this.empleado?.empresaId === empresaId && this.empleado.legajo === legajo) {
+      return this.empleado;
+    }
+    return null;
   }
 
   async actualizar(id: string, data: ActualizarEmpleadoData): Promise<Empleado> {
@@ -149,6 +161,62 @@ describe('ActualizarEmpleadoUseCase', () => {
     expect(resultado.nombre).toBe('Juan Carlos');
     expect(resultado.apellido).toBe('Pérez');
     expect(resultado.cuil.value).toBe('27309876542');
+  });
+
+  it('rechaza una fecha de ingreso posterior a hoy', async () => {
+    const fechaFutura = new Date(Date.now() + 1000 * 60 * 60 * 24 * 30);
+
+    await expect(
+      useCase.execute({
+        empresaId: EMPRESA_ID,
+        usuarioId: USUARIO_ID,
+        empleadoId: EMPLEADO_ID,
+        fechaIngreso: fechaFutura,
+      }),
+    ).rejects.toThrow('La fecha de ingreso no puede ser posterior a hoy');
+  });
+
+  it('rechaza un legajo ya asignado a otro empleado de la misma empresa', async () => {
+    empleadoRepository.otroEmpleadoConLegajo = Empleado.create({
+      id: 'empleado-2',
+      empresaId: EMPRESA_ID,
+      nombre: 'Ana',
+      apellido: 'Gómez',
+      cuil: '27410000070',
+      estado: 'activo',
+      legajo: '21',
+    });
+
+    await expect(
+      useCase.execute({
+        empresaId: EMPRESA_ID,
+        usuarioId: USUARIO_ID,
+        empleadoId: EMPLEADO_ID,
+        legajo: '21',
+      }),
+    ).rejects.toThrow('El legajo "21" ya está asignado a Gómez, Ana');
+  });
+
+  it('permite reasignar al mismo empleado su propio legajo sin conflicto', async () => {
+    empleadoRepository.empleado = Empleado.create({
+      id: EMPLEADO_ID,
+      empresaId: EMPRESA_ID,
+      nombre: 'Juan',
+      apellido: 'Perez',
+      cuil: '27309876542',
+      estado: 'activo',
+      legajo: '21',
+    });
+
+    const resultado = await useCase.execute({
+      empresaId: EMPRESA_ID,
+      usuarioId: USUARIO_ID,
+      empleadoId: EMPLEADO_ID,
+      legajo: '21',
+      banco: 'Banco Nación',
+    });
+
+    expect(resultado.legajo).toBe('21');
   });
 
   it('rechaza si la empresa no pertenece al usuario', async () => {
