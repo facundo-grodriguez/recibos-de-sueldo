@@ -1,0 +1,21 @@
+# Configuración de rclone para la copia off-site de los backups (Tarea 6 del
+# plan de piloto). Copiar a `rclone.conf` (gitignored, nunca se sube) y
+# completar con un destino real antes de levantar el servicio `backup`.
+#
+# Recomendado (gratis, mismo proveedor que el VPS sugerido en el README para
+# HTTPS): Oracle Cloud Object Storage, "Always Free" — 10GB, compatible con
+# la API de S3. Generar credenciales en Oracle Cloud Console → Object
+# Storage → Customer Secret Keys, y completar acá:
+#
+# [oracle]
+# type = s3
+# provider = Other
+# access_key_id = TU_ACCESS_KEY
+# secret_access_key = TU_SECRET_KEY
+# endpoint = https://<namespace>.compat.objectstorage.<region>.oraclecloud.com
+#
+# Con eso, RCLONE_REMOTE en .env queda como "oracle:<nombre-del-bucket>".
+#
+# Cualquier otro backend de rclone sirve igual (Backblaze B2, otro servidor
+# por SFTP, Google Drive, etc.) — ver `rclone config` o la documentación de
+# rclone.org para el formato de cada uno.

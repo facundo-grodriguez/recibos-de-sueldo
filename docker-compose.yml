@@ -57,6 +57,39 @@ services:
     command: sh -c "npx prisma migrate deploy && node dist/main.js"
     logging: *default-logging
 
+  # Backup diario automático (Tarea 6 del plan de piloto): mismo build que
+  # `backend`, pero corre backup-loop.sh en vez de servir HTTP. Ver README,
+  # sección "Backups", para el procedimiento de restauración.
+  backup:
+    build:
+      context: ./backend
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://recibos:${POSTGRES_PASSWORD:?Definí POSTGRES_PASSWORD en tu .env}@postgres:5432/recibos?schema=public
+      # Ninguna de las dos es obligatoria para arrancar: sin RCLONE_REMOTE
+      # el backup queda solo local (se avisa en el log, nunca en silencio,
+      # ver backup-loop.sh); BACKUP_RETENTION_CANTIDAD tiene default (14) en
+      # el propio script.
+      RCLONE_REMOTE: ${RCLONE_REMOTE:-}
+      BACKUP_RETENTION_CANTIDAD: ${BACKUP_RETENTION_CANTIDAD:-}
+    volumes:
+      # Mismo volumen que `backend`, pero solo lectura acá: el backup nunca
+      # tiene que poder modificar un PDF ya emitido.
+      - backend_uploads:/app/uploads:ro
+      - backend_backups:/app/backups
+      # rclone.conf tiene las credenciales del destino off-site — nunca se
+      # sube al repo (ver .gitignore). Copiar de rclone.conf.example antes
+      # del primer `up`; si se deja vacío, rclone simplemente no tiene
+      # ningún remoto configurado y RCLONE_REMOTE no puede resolver a nada
+      # (incluso si se define igual, fallaría — lo cual es correcto: preferible
+      # un log de advertencia claro a fingir que copió algo).
+      - ./rclone.conf:/root/.config/rclone/rclone.conf:ro
+    command: sh scripts/backup-loop.sh
+    logging: *default-logging
+
   frontend:
     build:
       context: ./frontend
@@ -92,5 +125,6 @@ services:
 volumes:
   postgres_data:
   backend_uploads:
+  backend_backups:
   caddy_data:
   caddy_config:

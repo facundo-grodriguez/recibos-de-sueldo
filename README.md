@@ -252,16 +252,32 @@ npm run lint       # oxlint
 
 ## Backups
 
-`backend/scripts/backup.mjs` (`npm run backup` desde `backend/`) genera un backup lógico completo en `backend/backups/<timestamp>/` (gitignored):
+`backend/scripts/backup.mjs` genera un backup lógico completo:
 
-- Un `.json` por tabla (usuarios, empresas, empleados, importaciones, filas, catálogo de conceptos, recibos, auditoría), vía Prisma — no depende de `pg_dump` (no está disponible en este entorno de desarrollo, el paquete `embedded-postgres` no lo incluye).
+- Un `.json` por tabla (usuarios, empresas, empleados, importaciones, filas, catálogo de conceptos, recibos, auditoría), vía Prisma — no depende de `pg_dump`.
 - Una copia completa de `uploads/recibos/` (los PDF ya emitidos).
+- Retención automática: conserva los últimos `BACKUP_RETENTION_CANTIDAD` backups (default 14) y borra el resto — sin esto, un backup diario sin supervisión llena el disco con el tiempo.
 
-**Por qué se copian los PDF además de la base**, y no alcanza con la base sola: el hash de integridad de cada recibo (`Recibo.hashIntegridad`) se calculó sobre los bytes exactos del PDF en el momento de emitir. La plantilla del recibo cambia con el tiempo (varias veces solo en esta etapa del proyecto) — volver a generar el PDF desde el snapshot guardado en la base, con la plantilla de hoy, no reproduce necesariamente los mismos bytes ni el mismo hash. El PDF original es la única copia donde ese hash sigue siendo válido.
+**Por qué se copian los PDF además de la base**, y no alcanza con la base sola: el hash de integridad de cada recibo (`Recibo.hashIntegridad`) se calculó sobre los bytes exactos del PDF en el momento de emitir. La plantilla del recibo cambia con el tiempo — volver a generar el PDF desde el snapshot guardado en la base, con la plantilla de hoy, no reproduce necesariamente los mismos bytes ni el mismo hash. El PDF original es la única copia donde ese hash sigue siendo válido.
 
-**Restaurar** es intencionalmente manual, no un script automático (una restauración es una operación rara y de alto impacto — no conviene automatizar el paso destructivo): recrear la base con `prisma migrate deploy`, cargar cada `.json` con un script puntual de `prisma.<tabla>.createMany()` en el orden que respeta las referencias (`usuario` → `empresa` → `empleado`/`importacion` → `importacionFila`/`perfilMapeoConcepto`/`recibo` → `auditLog`), y copiar `uploads-recibos/` de vuelta a `backend/uploads/recibos/`.
+### Programado + off-site (Docker Compose)
 
-**Con Docker Compose (producción)**: no probado de punta a punta en este entorno (mismo motivo que la nota de Docker más abajo), pero el camino estándar es `docker compose exec postgres pg_dump -U recibos recibos > backup.sql` (la imagen oficial de Postgres sí incluye `pg_dump`) en vez del script de arriba, combinado con una copia del volumen `backend_uploads` por el mismo motivo (los PDF no son reconstruibles). Automatizar esto con una tarea programada es trabajo de la fase de infraestructura real, cuando exista un servidor de producción que proteger — no antes.
+El servicio `backup` de `docker-compose.yml` (mismo build que `backend`) corre `backend/scripts/backup-loop.sh`: un backup apenas arranca y después uno cada 24h, sin supervisión manual. Si `RCLONE_REMOTE` está definido en `.env`, cada backup se copia además a un destino off-site vía `rclone` (recomendado: Oracle Cloud Object Storage, "Always Free" — ver `rclone.conf.example`, copiar a `rclone.conf` — gitignored — con las credenciales reales antes del primer `docker compose up`). Sin `RCLONE_REMOTE`, el backup sigue funcionando pero queda solo en este servidor — se avisa en el log (`docker compose logs backup`), nunca en silencio.
+
+**Por qué importa el off-site**: un backup que vive nada más que en el mismo servidor no protege contra la falla de ese servidor (disco roto, VPS borrado por error, etc.) — sigue siendo un único punto de falla, solo que un paso más adelante.
+
+### Restaurar
+
+`backend/scripts/restore.mjs` (`npm run restore -- <directorio-backup>` desde `backend/`) carga un backup en una base ya migrada y vacía, respetando el orden de las referencias (`usuario` → `empresa` → `empleado`/`importacion` → `importacionFila`/`perfilMapeoConcepto`/`recibo` → `auditLog`), y copia `uploads-recibos/` de vuelta a `uploads/recibos/`. Dos pasos siempre separados, a propósito (crear estructura vacía vs. cargar datos no se mezclan en un solo comando):
+
+```bash
+DATABASE_URL="postgresql://..." npx prisma migrate deploy   # 1. estructura, sobre una base vacía
+DATABASE_URL="postgresql://..." npm run restore -- backups/<timestamp>   # 2. datos
+```
+
+**Probado de punta a punta (2026-07-22, Tarea 6 del plan de piloto), contra Postgres real:** `npm run backup` sobre la base de desarrollo real (8 usuarios, 6 empresas, 19 empleados, 17 recibos, 749 entradas de auditoría) → creada una base Postgres nueva y vacía (`recibos_restore_test`) → `prisma migrate deploy` → `restore.mjs` → los 8 conteos por tabla coincidieron exactamente con el backup, sin ningún error de clave foránea → se recalculó el SHA-256 de uno de los PDF restaurados y coincidió byte a byte con el `hashIntegridad` guardado en la base restaurada → el PDF se abrió y su contenido es el recibo real, íntegro. Base e datos de prueba borrados al terminar.
+
+**Lo que no se probó**: el camino completo vía `docker compose` (el servicio `backup`, el volumen `backend_backups`, la copia real a un remoto de `rclone`) — Docker Desktop no está disponible en este entorno. El mecanismo de backup/restore en sí (la parte que de verdad puede perder datos si falla) sí quedó probado real, contra Postgres real, con verificación de hash — lo no probado es la orquestación alrededor.
 
 ## Seguridad
 

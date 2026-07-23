@@ -21,6 +21,12 @@ ENV NODE_ENV=production
 # descarga que ya bajó (sin usarse) en el stage de build.
 RUN apt-get update \
   && apt-get install -y --no-install-recommends chromium \
+  # rclone: copia de los backups a un destino off-site (Tarea 6 del plan de
+  # piloto, ver backend/scripts/backup-loop.sh y README sección "Backups").
+  # Sin esto, un incendio/robo/falla de disco del servidor se lleva puestos
+  # tanto la base como su única copia — un backup que vive nada más que en
+  # la misma máquina no protege contra eso.
+  && apt-get install -y --no-install-recommends rclone \
   && rm -rf /var/lib/apt/lists/*
 ENV PUPPETEER_SKIP_DOWNLOAD=true
 ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
@@ -29,6 +35,7 @@ COPY prisma ./prisma
 RUN npm ci --omit=dev
 RUN npx prisma generate
 COPY --from=build /app/dist ./dist
+COPY scripts ./scripts
 
 EXPOSE 3000
 CMD ["node", "dist/main.js"]
