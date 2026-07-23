@@ -53,7 +53,7 @@ function snapshotBase(overrides: Partial<ReciboSnapshot> = {}): ReciboSnapshot {
       costoLaboralTotal: 1050,
     },
     segmentosCostoLaboral: [
-      { etiqueta: 'Sueldo Neto', monto: 1000, porcentaje: (1000 / 1050) * 100, color: '#2a78d6' },
+      { etiqueta: 'Sueldo Bruto', monto: 1000, porcentaje: (1000 / 1050) * 100, color: '#2a78d6' },
       { etiqueta: 'Sindical', monto: 50, porcentaje: (50 / 1050) * 100, color: '#008300' },
     ],
     detalleComposicionSalarial: [
@@ -116,7 +116,7 @@ describe('generarHtmlRecibo', () => {
 
   it('lista cada segmento del costo laboral en la leyenda del gráfico', () => {
     const html = generarHtmlRecibo(snapshotBase());
-    expect(html).toContain('Sueldo Neto');
+    expect(html).toContain('Sueldo Bruto');
     expect(html).toContain('Sindical');
   });
 
@@ -311,18 +311,18 @@ describe('generarHtmlRecibo', () => {
     expect(html).toMatch(/\.destacado\.costo-laboral\s*\{[^}]*background:/);
   });
 
-  it('muestra el detalle de composición salarial cruzando empleador y trabajador por categoría', () => {
+  it('no imprime "Detalle de composición salarial" como sección propia (decisión de producto 2026-07-23: no es una de las 6 secciones obligatorias, duplicaba datos ya completos en Contribuciones/Deducciones)', () => {
     const html = generarHtmlRecibo(snapshotBase());
 
-    expect(html).toContain(`Empleador: ${formatearMonto(50)}`);
-    expect(html).toContain(`Trabajador: ${formatearMonto(110)}`);
+    expect(html).not.toContain(`Empleador: ${formatearMonto(50)}`);
+    expect(html).not.toContain(`Trabajador: ${formatearMonto(110)}`);
   });
 
   it('ubica la Firma inmediatamente después del Sueldo Neto, antes del Detalle de composición salarial y el gráfico (orden del Anexo III oficial)', () => {
     const html = generarHtmlRecibo(snapshotBase());
 
     const posicionNeto = html.indexOf('Remuneración neta');
-    const posicionFirma = html.indexOf('Firma del trabajador');
+    const posicionFirma = html.indexOf('Firma del empleado');
     const posicionDetalle = html.indexOf('class="pie-documento"');
 
     expect(posicionNeto).toBeGreaterThan(-1);
@@ -330,13 +330,6 @@ describe('generarHtmlRecibo', () => {
     expect(posicionDetalle).toBeGreaterThan(-1);
     expect(posicionNeto).toBeLessThan(posicionFirma);
     expect(posicionFirma).toBeLessThan(posicionDetalle);
-  });
-
-  it('no muestra un sub-renglón de Empleador o Trabajador cuando ese lado es cero', () => {
-    const html = generarHtmlRecibo(snapshotBase());
-    // "Sindical" en este fixture solo tiene lado empleador (50), no trabajador.
-    const bloqueSindical = html.slice(html.indexOf('Sindical'), html.indexOf('Sindical') + 200);
-    expect(bloqueSindical).not.toContain(`Trabajador: ${formatearMonto(0)}`);
   });
 
   describe('guarda de cobertura (un tipo sin contemplar no puede desaparecer del recibo en silencio)', () => {

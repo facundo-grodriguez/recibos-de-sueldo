@@ -94,7 +94,7 @@ export function construirSnapshotRecibo(params: ConstruirSnapshotReciboParams): 
     },
     conceptos: conceptosDelSnapshot(params.filas),
     totales,
-    segmentosCostoLaboral: construirSegmentosCostoLaboral(detalleComposicionSalarial, totales.neto, totales.costoLaboralTotal),
+    segmentosCostoLaboral: construirSegmentosCostoLaboral(detalleComposicionSalarial, totales.totalBruto, totales.costoLaboralTotal),
     detalleComposicionSalarial,
   };
 }
