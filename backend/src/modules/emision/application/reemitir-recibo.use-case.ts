@@ -1,22 +1,41 @@
 import { createHash } from 'node:crypto';
 import { Inject, Injectable } from '@nestjs/common';
+import { AUDIT_LOG_REPOSITORY, AuditLogRepository } from '../../../infra/auditoria/audit-log.repository';
 import { DomainError } from '../../../shared/errors/domain-error';
 import { NotFoundError } from '../../../shared/errors/not-found-error';
 import { ValidarImportacionUseCase } from '../../validacion/application/validar-importacion.use-case';
 import { EMPLEADO_REPOSITORY, EmpleadoRepository } from '../../empleados/domain/empleado.repository';
 import { EMPRESA_REPOSITORY, EmpresaRepository } from '../../empresas/domain/empresa.repository';
+import {
+  CambiosFilaImportacion,
+  construirFilaCanonicaCorregida,
+} from '../../importacion/domain/construir-fila-canonica-corregida';
+import { ImportacionFila } from '../../importacion/domain/importacion-fila.entity';
 import { IMPORTACION_REPOSITORY, ImportacionRepository } from '../../importacion/domain/importacion.repository';
+import { validarFilaImportacion } from '../../importacion/domain/validar-fila-importacion';
 import { ALMACENAMIENTO_RECIBOS, AlmacenamientoRecibos } from '../domain/almacenamiento-recibos';
 import { construirSnapshotRecibo } from '../domain/construir-snapshot-recibo';
 import { GENERADOR_PDF, GeneradorPdf } from '../domain/generador-pdf';
 import { Recibo } from '../domain/recibo.entity';
 import { RECIBO_REPOSITORY, ReciboRepository } from '../domain/recibo.repository';
 
+export interface AjusteFilaReemision {
+  filaId: string;
+  cambios: CambiosFilaImportacion;
+}
+
 export interface ReemitirReciboInput {
   empresaId: string;
   usuarioId: string;
   importacionId: string;
   reciboId: string;
+  /**
+   * Correcciones puntuales para este recibo de reemplazo únicamente (ADR-071:
+   * la fila original de la importación nunca se toca, queda intacta para
+   * siempre — ver `aplicarAjustes`). Si una fila ajustada queda inválida,
+   * se rechaza toda la reemisión antes de generar nada.
+   */
+  ajustes?: AjusteFilaReemision[];
 }
 
 @Injectable()
@@ -28,6 +47,7 @@ export class ReemitirReciboUseCase {
     @Inject(RECIBO_REPOSITORY) private readonly reciboRepository: ReciboRepository,
     @Inject(GENERADOR_PDF) private readonly generadorPdf: GeneradorPdf,
     @Inject(ALMACENAMIENTO_RECIBOS) private readonly almacenamiento: AlmacenamientoRecibos,
+    @Inject(AUDIT_LOG_REPOSITORY) private readonly auditLogRepository: AuditLogRepository,
     private readonly validarImportacion: ValidarImportacionUseCase,
   ) {}
 
@@ -73,10 +93,12 @@ export class ReemitirReciboUseCase {
       );
     }
 
-    const filas = importacion.agruparFilasPorCuilValido().get(empleado.cuil.value);
-    if (!filas || filas.length === 0) {
+    const filasOriginales = importacion.agruparFilasPorCuilValido().get(empleado.cuil.value);
+    if (!filasOriginales || filasOriginales.length === 0) {
       throw new DomainError('No se encontraron filas de esta importación para el empleado');
     }
+
+    const filas = this.aplicarAjustes(filasOriginales, input.ajustes ?? []);
 
     // tieneDatosDeEmisionCompletos() ya se cumplió en la emisión original: el
     // período no cambia al corregir, así que estos 4 campos siguen completos.
@@ -126,7 +148,7 @@ export class ReemitirReciboUseCase {
       contenido: pdf,
     });
 
-    return this.reciboRepository.create({
+    const reciboNuevo = await this.reciboRepository.create({
       importacionId: importacion.id,
       empleadoId: empleado.id,
       numero,
@@ -135,5 +157,92 @@ export class ReemitirReciboUseCase {
       hashIntegridad,
       reemplazaAId: reciboAnulado.id,
     });
+
+    if (input.ajustes && input.ajustes.length > 0) {
+      await this.auditarAjustes(reciboNuevo.id, input.usuarioId, filasOriginales, input.ajustes);
+    }
+
+    return reciboNuevo;
+  }
+
+  /**
+   * Aplica las correcciones puntuales pedidas para este reemplazo, revalidando
+   * cada fila tocada con la misma regla de negocio de siempre
+   * (`validarFilaImportacion`) — nunca se persiste sobre `ImportacionFila`
+   * (ADR-071: la importación original es inmutable). Si algún ajuste deja una
+   * fila inválida, se rechaza toda la reemisión antes de generar el PDF.
+   */
+  private aplicarAjustes(
+    filasOriginales: ImportacionFila[],
+    ajustes: AjusteFilaReemision[],
+  ): ImportacionFila[] {
+    if (ajustes.length === 0) {
+      return filasOriginales;
+    }
+
+    const ajustesPorFilaId = new Map(ajustes.map((ajuste) => [ajuste.filaId, ajuste.cambios]));
+
+    return filasOriginales.map((fila) => {
+      const cambios = ajustesPorFilaId.get(fila.id);
+      if (!cambios) {
+        return fila;
+      }
+
+      const filaCanonica = construirFilaCanonicaCorregida(fila, cambios);
+      const resultado = validarFilaImportacion(filaCanonica);
+      if (!resultado.valida) {
+        throw new DomainError(`Fila ${fila.numeroFila}: ${resultado.error}`);
+      }
+
+      return ImportacionFila.create({
+        id: fila.id,
+        numeroFila: fila.numeroFila,
+        cuil: resultado.datos.cuil.value,
+        nombre: resultado.datos.nombre,
+        apellido: resultado.datos.apellido,
+        concepto: resultado.datos.concepto,
+        montoOriginal: filaCanonica.monto,
+        monto: resultado.datos.monto.toDecimal(),
+        valida: true,
+        errorMensaje: null,
+        clasificacion: fila.clasificacion,
+        unidad: resultado.datos.unidad,
+        base: resultado.datos.base,
+        correcciones: resultado.datos.correcciones,
+      });
+    });
+  }
+
+  /** Deja constancia de qué se ajustó en este reemplazo puntual — la fila de origen no cambia, así que sin esto se perdería el rastro del porqué el recibo nuevo difiere del anulado. */
+  private async auditarAjustes(
+    reciboId: string,
+    usuarioId: string,
+    filasOriginales: ImportacionFila[],
+    ajustes: AjusteFilaReemision[],
+  ): Promise<void> {
+    const filasPorId = new Map(filasOriginales.map((fila) => [fila.id, fila]));
+
+    for (const ajuste of ajustes) {
+      const filaOriginal = filasPorId.get(ajuste.filaId);
+      await this.auditLogRepository.create({
+        entidad: 'Recibo',
+        entidadId: reciboId,
+        accion: 'ajuste-reemision',
+        usuarioId,
+        campo: `fila-${filaOriginal?.numeroFila ?? ajuste.filaId}`,
+        valorAnterior: filaOriginal
+          ? JSON.stringify({
+              cuil: filaOriginal.cuil,
+              nombre: filaOriginal.nombre,
+              apellido: filaOriginal.apellido,
+              concepto: filaOriginal.concepto,
+              monto: filaOriginal.montoOriginal,
+              unidad: filaOriginal.unidad,
+              base: filaOriginal.base,
+            })
+          : null,
+        valorNuevo: JSON.stringify(ajuste.cambios),
+      });
+    }
   }
 }

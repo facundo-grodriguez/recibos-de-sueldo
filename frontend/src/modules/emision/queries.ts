@@ -2,10 +2,12 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '../../shared/auth/AuthContext';
 import {
   anularRecibo,
+  type AjusteFilaReemision,
   emitirRecibos,
   listarHistorialRecibos,
   listarRecibos,
   obtenerAuditoriaRecibo,
+  previsualizarReemision,
   reemitirRecibo,
 } from './api';
 
@@ -78,8 +80,28 @@ export function useReemitirRecibo(empresaId: string) {
   const { token } = useAuth();
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ importacionId, reciboId }: { importacionId: string; reciboId: string }) =>
-      reemitirRecibo(token as string, empresaId, importacionId, reciboId),
+    mutationFn: ({
+      importacionId,
+      reciboId,
+      ajustes,
+    }: {
+      importacionId: string;
+      reciboId: string;
+      ajustes?: AjusteFilaReemision[];
+    }) => reemitirRecibo(token as string, empresaId, importacionId, reciboId, ajustes),
     onSuccess: (_recibo, variables) => invalidarRecibos(queryClient, empresaId, variables.importacionId),
+  });
+}
+
+export function usePrevisualizarReemision(
+  empresaId: string,
+  importacionId: string | undefined,
+  reciboId: string | undefined,
+) {
+  const { token } = useAuth();
+  return useQuery({
+    queryKey: ['previsualizar-reemision', empresaId, importacionId, reciboId],
+    queryFn: () => previsualizarReemision(token as string, empresaId, importacionId as string, reciboId as string),
+    enabled: token !== null && importacionId !== undefined && reciboId !== undefined,
   });
 }

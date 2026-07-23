@@ -12,6 +12,7 @@ import { EmitirRecibosUseCase } from './application/emitir-recibos.use-case';
 import { ListarAuditoriaReciboUseCase } from './application/listar-auditoria-recibo.use-case';
 import { ListarHistorialRecibosEmpresaUseCase } from './application/listar-historial-recibos-empresa.use-case';
 import { ListarRecibosUseCase } from './application/listar-recibos.use-case';
+import { PrevisualizarReemisionUseCase } from './application/previsualizar-reemision.use-case';
 import { ReemitirReciboUseCase } from './application/reemitir-recibo.use-case';
 import { ALMACENAMIENTO_RECIBOS } from './domain/almacenamiento-recibos';
 import { EMPAQUETADOR_ZIP } from './domain/empaquetador-zip';
@@ -33,6 +34,7 @@ import { HistorialRecibosController } from './presentation/historial-recibos.con
     DescargarReciboUseCase,
     AnularReciboUseCase,
     ReemitirReciboUseCase,
+    PrevisualizarReemisionUseCase,
     DescargarLoteRecibosUseCase,
     ListarHistorialRecibosEmpresaUseCase,
     ListarAuditoriaReciboUseCase,

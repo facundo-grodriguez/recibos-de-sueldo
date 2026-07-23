@@ -18,6 +18,7 @@ import {
   ReciboRepository,
 } from '../../src/modules/emision/domain/recibo.repository';
 import { ReciboSnapshot } from '../../src/modules/emision/domain/recibo-snapshot';
+import { AuditLogRepository, CrearAuditLogEntryData } from '../../src/infra/auditoria/audit-log.repository';
 import { ValidarImportacionUseCase } from '../../src/modules/validacion/application/validar-importacion.use-case';
 import { Empleado } from '../../src/modules/empleados/domain/empleado.entity';
 import { Empresa } from '../../src/modules/empresas/domain/empresa.entity';
@@ -31,6 +32,18 @@ const USUARIO_ID = 'usuario-1';
 const IMPORTACION_ID = 'importacion-1';
 const CUIL_JUAN = '27309876542';
 const CUIL_ANA = '20123456786';
+
+class AuditLogRepositoryFake implements AuditLogRepository {
+  entradas: CrearAuditLogEntryData[] = [];
+
+  async findByEntidad() {
+    throw new Error('no usado en este test');
+  }
+
+  async create(data: CrearAuditLogEntryData): Promise<void> {
+    this.entradas.push(data);
+  }
+}
 
 class EmpresaRepositoryFake implements EmpresaRepository {
   visible = true;
@@ -154,6 +167,8 @@ class EmpleadoRepositoryFake implements EmpleadoRepository {
       estado: empleado.estado,
       categoria: data.categoria ?? empleado.categoria,
       fechaIngreso: data.fechaIngreso ?? empleado.fechaIngreso,
+      legajo: empleado.legajo,
+      banco: empleado.banco,
     });
     this.empleados = this.empleados.map((e) => (e.id === id ? actualizado : e));
     return actualizado;
@@ -398,6 +413,7 @@ describe('ReemitirReciboUseCase', () => {
   let reciboRepository: ReciboRepositoryFake;
   let generadorPdf: GeneradorPdfFake;
   let almacenamiento: AlmacenamientoRecibosFake;
+  let auditLogRepository: AuditLogRepositoryFake;
   let useCase: ReemitirReciboUseCase;
 
   beforeEach(() => {
@@ -407,6 +423,7 @@ describe('ReemitirReciboUseCase', () => {
     reciboRepository = new ReciboRepositoryFake();
     generadorPdf = new GeneradorPdfFake();
     almacenamiento = new AlmacenamientoRecibosFake();
+    auditLogRepository = new AuditLogRepositoryFake();
 
     const validarImportacion = new ValidarImportacionUseCase(empresaRepository, importacionRepository, empleadoRepository);
     useCase = new ReemitirReciboUseCase(
@@ -416,6 +433,7 @@ describe('ReemitirReciboUseCase', () => {
       reciboRepository,
       generadorPdf,
       almacenamiento,
+      auditLogRepository,
       validarImportacion,
     );
 
@@ -429,6 +447,8 @@ describe('ReemitirReciboUseCase', () => {
         estado: 'activo',
         categoria: 'Administrativo',
         fechaIngreso: new Date('2024-01-10'),
+        legajo: '0001',
+        banco: 'Banco Nación',
       }),
     );
     importacionRepository.seed(importacionLista());
@@ -469,6 +489,45 @@ describe('ReemitirReciboUseCase', () => {
     // (el recibo anulado original era numero 1, este reemplazo es numero 2).
     expect(almacenamiento.guardados[0].numero).toBe(2);
     expect(reemplazo.pdfPath).toContain('-2.pdf');
+  });
+
+  it('aplica un ajuste puntual al recibo de reemplazo sin tocar la fila original de la importación', async () => {
+    const reemplazo = await useCase.execute({
+      empresaId: EMPRESA_ID,
+      usuarioId: USUARIO_ID,
+      importacionId: IMPORTACION_ID,
+      reciboId: 'recibo-1',
+      ajustes: [{ filaId: 'f1', cambios: { monto: '1500' } }],
+    });
+
+    expect(reemplazo.snapshot.conceptos[0].monto).toBe(1500);
+    expect(reemplazo.snapshot.totales.totalBruto).toBe(1500);
+    // La fila de origen de la importación queda intacta (ADR-071).
+    const filaOriginal = importacionRepository.importaciones[0].filas.find((f) => f.id === 'f1');
+    expect(filaOriginal?.monto).toBe(1000);
+    // Queda auditado qué se ajustó, ya que el dato de origen no lo refleja.
+    expect(auditLogRepository.entradas).toHaveLength(1);
+    expect(auditLogRepository.entradas[0]).toMatchObject({
+      entidad: 'Recibo',
+      accion: 'ajuste-reemision',
+      campo: 'fila-2',
+    });
+  });
+
+  it('rechaza la reemisión si el ajuste deja la fila inválida', async () => {
+    await expect(
+      useCase.execute({
+        empresaId: EMPRESA_ID,
+        usuarioId: USUARIO_ID,
+        importacionId: IMPORTACION_ID,
+        reciboId: 'recibo-1',
+        ajustes: [{ filaId: 'f1', cambios: { monto: 'no-es-un-numero' } }],
+      }),
+    ).rejects.toThrow(DomainError);
+
+    // No debe haber generado ni PDF ni recibo alguno ante el rechazo.
+    expect(generadorPdf.snapshotsRecibidos).toHaveLength(0);
+    expect(reciboRepository.recibos).toHaveLength(1);
   });
 
   it('rechaza reemitir un recibo vigente (no anulado)', async () => {

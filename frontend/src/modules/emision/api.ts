@@ -1,5 +1,6 @@
 import { downloadFile } from '../../shared/api/download';
 import { request } from '../../shared/api/http';
+import type { ImportacionFila } from '../importacion/api';
 
 export interface Recibo {
   id: string;
@@ -19,7 +20,12 @@ export interface Recibo {
 }
 
 export function listarRecibos(token: string, empresaId: string, importacionId: string): Promise<Recibo[]> {
-  return request<Recibo[]>(`/empresas/${empresaId}/importaciones/${importacionId}/recibos`, { token });
+  // incluirAnulados=true: la tabla (RecibosTable) muestra ambos estados y
+  // ofrece "Reemitir" sobre los anulados — sin este flag, un recibo
+  // desaparecía de la lista apenas se anulaba, sin forma de reemitirlo.
+  return request<Recibo[]>(`/empresas/${empresaId}/importaciones/${importacionId}/recibos?incluirAnulados=true`, {
+    token,
+  });
 }
 
 export function emitirRecibos(token: string, empresaId: string, importacionId: string): Promise<Recibo[]> {
@@ -69,16 +75,35 @@ export function anularRecibo(
   });
 }
 
+export interface AjusteFilaReemision {
+  filaId: string;
+  cambios: Partial<Record<'cuil' | 'nombre' | 'apellido' | 'concepto' | 'monto' | 'unidad' | 'base', string>>;
+}
+
 export function reemitirRecibo(
   token: string,
   empresaId: string,
   importacionId: string,
   reciboId: string,
+  ajustes?: AjusteFilaReemision[],
 ): Promise<Recibo> {
   return request<Recibo>(`/empresas/${empresaId}/importaciones/${importacionId}/recibos/${reciboId}/reemitir`, {
     method: 'POST',
     token,
+    body: { ajustes },
   });
+}
+
+export function previsualizarReemision(
+  token: string,
+  empresaId: string,
+  importacionId: string,
+  reciboId: string,
+): Promise<{ filas: ImportacionFila[] }> {
+  return request<{ filas: ImportacionFila[] }>(
+    `/empresas/${empresaId}/importaciones/${importacionId}/recibos/${reciboId}/previsualizar-reemision`,
+    { token },
+  );
 }
 
 export interface AuditoriaReciboEntry {

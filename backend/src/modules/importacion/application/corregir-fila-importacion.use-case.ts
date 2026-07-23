@@ -2,21 +2,12 @@ import { Inject, Injectable } from '@nestjs/common';
 import { DomainError } from '../../../shared/errors/domain-error';
 import { NotFoundError } from '../../../shared/errors/not-found-error';
 import { EMPRESA_REPOSITORY, EmpresaRepository } from '../../empresas/domain/empresa.repository';
-import { FilaCanonica } from '../domain/fila-canonica';
-import { ImportacionFila } from '../domain/importacion-fila.entity';
+import { CambiosFilaImportacion, construirFilaCanonicaCorregida } from '../domain/construir-fila-canonica-corregida';
 import { Importacion } from '../domain/importacion.entity';
 import { ActualizarFilaData, IMPORTACION_REPOSITORY, ImportacionRepository } from '../domain/importacion.repository';
 import { validarFilaImportacion } from '../domain/validar-fila-importacion';
 
-export interface CambiosFilaImportacion {
-  cuil?: string;
-  nombre?: string;
-  apellido?: string;
-  concepto?: string;
-  monto?: string;
-  unidad?: string;
-  base?: string;
-}
+export type { CambiosFilaImportacion };
 
 export interface CorregirFilaImportacionInput {
   empresaId: string;
@@ -24,20 +15,6 @@ export interface CorregirFilaImportacionInput {
   importacionId: string;
   filaId: string;
   cambios: CambiosFilaImportacion;
-}
-
-/** Mezcla los cambios pedidos sobre los valores crudos actuales de la fila, para revalidarla como si fuera una fila recién parseada. */
-function construirFilaCanonicaCorregida(filaActual: ImportacionFila, cambios: CambiosFilaImportacion): FilaCanonica {
-  return {
-    numeroFila: filaActual.numeroFila,
-    cuil: cambios.cuil ?? filaActual.cuil,
-    nombre: cambios.nombre ?? filaActual.nombre,
-    apellido: cambios.apellido ?? filaActual.apellido,
-    concepto: cambios.concepto ?? filaActual.concepto,
-    monto: cambios.monto ?? filaActual.montoOriginal,
-    unidad: cambios.unidad ?? filaActual.unidad ?? undefined,
-    base: cambios.base ?? (filaActual.base === null ? undefined : String(filaActual.base)),
-  };
 }
 
 /**

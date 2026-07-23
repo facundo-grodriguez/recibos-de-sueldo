@@ -1,3 +1,4 @@
+import { ImportacionFila } from '../domain/importacion-fila.entity';
 import { Importacion } from '../domain/importacion.entity';
 
 export interface ImportacionFilaResponse {
@@ -53,6 +54,26 @@ export interface ImportacionResumenResponse {
   filasConError: number;
 }
 
+export function toImportacionFilaResponse(fila: ImportacionFila): ImportacionFilaResponse {
+  return {
+    id: fila.id,
+    numeroFila: fila.numeroFila,
+    cuil: fila.cuil,
+    nombre: fila.nombre,
+    apellido: fila.apellido,
+    concepto: fila.concepto,
+    montoOriginal: fila.montoOriginal,
+    monto: fila.monto,
+    valida: fila.valida,
+    errorMensaje: fila.errorMensaje,
+    tipo: fila.clasificacion?.tipo ?? null,
+    categoriaContribucion: fila.clasificacion?.categoriaContribucion ?? null,
+    unidad: fila.unidad,
+    base: fila.base,
+    correcciones: fila.correcciones,
+  };
+}
+
 export function toImportacionResumenResponse(importacion: Importacion): ImportacionResumenResponse {
   return {
     id: importacion.id,
@@ -90,23 +111,7 @@ export function toImportacionResponse(
     filasConError: importacion.filas.filter((fila) => !fila.valida).length,
     filasSinClasificar: importacion.filas.filter((fila) => fila.valida && !fila.estaClasificada()).length,
     filasConCorrecciones: importacion.filas.filter((fila) => fila.correcciones.length > 0).length,
-    filas: importacion.filas.map((fila) => ({
-      id: fila.id,
-      numeroFila: fila.numeroFila,
-      cuil: fila.cuil,
-      nombre: fila.nombre,
-      apellido: fila.apellido,
-      concepto: fila.concepto,
-      montoOriginal: fila.montoOriginal,
-      monto: fila.monto,
-      valida: fila.valida,
-      errorMensaje: fila.errorMensaje,
-      tipo: fila.clasificacion?.tipo ?? null,
-      categoriaContribucion: fila.clasificacion?.categoriaContribucion ?? null,
-      unidad: fila.unidad,
-      base: fila.base,
-      correcciones: fila.correcciones,
-    })),
+    filas: importacion.filas.map(toImportacionFilaResponse),
     hayOtraImportacionEnMismoPeriodo,
   };
 }
