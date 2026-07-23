@@ -1,6 +1,7 @@
-import { Button, Group, Modal, Stack, Text, TextInput } from '@mantine/core';
+import { Alert, Button, Group, Modal, Stack, Text, TextInput } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { notifications } from '@mantine/notifications';
+import { useState } from 'react';
 import { ApiError } from '../../shared/api/http';
 import { omitirVacios } from '../../shared/forms/omitirVacios';
 import { zodValidate } from '../../shared/forms/zodValidate';
@@ -60,6 +61,7 @@ function Formulario({
   onCorregida?: () => void;
 }) {
   const corregir = useCorregirFilaImportacion(empresaId, importacionId);
+  const [errorPersistente, setErrorPersistente] = useState<string | undefined>(undefined);
 
   const form = useForm<CorregirFilaFormValues>({
     initialValues: aValoresFormulario(fila),
@@ -67,8 +69,20 @@ function Formulario({
   });
 
   async function handleSubmit(values: CorregirFilaFormValues): Promise<void> {
+    setErrorPersistente(undefined);
     try {
-      await corregir.mutateAsync({ filaId: fila.id, cambios: omitirVacios(values) });
+      const importacionActualizada = await corregir.mutateAsync({ filaId: fila.id, cambios: omitirVacios(values) });
+      const filaActualizada = importacionActualizada.filas.find((f) => f.id === fila.id);
+
+      // El guardado en sí puede tener éxito (200) aunque el dato siga siendo
+      // inválido — el backend revalida y solo actualiza el error, no lo
+      // rechaza. Si seguimos sin verificar esto acá, el usuario ve "corregida"
+      // en verde y la fila sigue con error en la tabla de atrás.
+      if (filaActualizada && !filaActualizada.valida) {
+        setErrorPersistente(filaActualizada.errorMensaje ?? 'La fila sigue sin ser válida');
+        return;
+      }
+
       notifications.show({ message: `Fila ${fila.numeroFila} corregida`, color: 'green' });
       onClose();
       onCorregida?.();
@@ -86,6 +100,11 @@ function Formulario({
         <Text size="sm" c="dimmed">
           Fila {fila.numeroFila}
         </Text>
+        {errorPersistente && (
+          <Alert color="red" title="Sigue sin ser válida">
+            {errorPersistente}
+          </Alert>
+        )}
         <Group grow>
           <TextInput label="CUIL" autoFocus {...form.getInputProps('cuil')} />
           <TextInput label="Monto" {...form.getInputProps('monto')} />
