@@ -311,11 +311,11 @@ describe('generarHtmlRecibo', () => {
     expect(html).toMatch(/\.destacado\.costo-laboral\s*\{[^}]*background:/);
   });
 
-  it('no imprime "Detalle de composición salarial" como sección propia (decisión de producto 2026-07-23: no es una de las 6 secciones obligatorias, duplicaba datos ya completos en Contribuciones/Deducciones)', () => {
+  it('muestra el detalle de composición salarial cruzando empleador y trabajador por categoría', () => {
     const html = generarHtmlRecibo(snapshotBase());
 
-    expect(html).not.toContain(`Empleador: ${formatearMonto(50)}`);
-    expect(html).not.toContain(`Trabajador: ${formatearMonto(110)}`);
+    expect(html).toContain(`Empleador: ${formatearMonto(50)}`);
+    expect(html).toContain(`Trabajador: ${formatearMonto(110)}`);
   });
 
   it('ubica la Firma inmediatamente después del Sueldo Neto, antes del Detalle de composición salarial y el gráfico (orden del Anexo III oficial)', () => {
@@ -330,6 +330,13 @@ describe('generarHtmlRecibo', () => {
     expect(posicionDetalle).toBeGreaterThan(-1);
     expect(posicionNeto).toBeLessThan(posicionFirma);
     expect(posicionFirma).toBeLessThan(posicionDetalle);
+  });
+
+  it('no muestra un sub-renglón de Empleador o Trabajador cuando ese lado es cero', () => {
+    const html = generarHtmlRecibo(snapshotBase());
+    // "Sindical" en este fixture solo tiene lado empleador (50), no trabajador.
+    const bloqueSindical = html.slice(html.indexOf('Sindical'), html.indexOf('Sindical') + 200);
+    expect(bloqueSindical).not.toContain(`Trabajador: ${formatearMonto(0)}`);
   });
 
   describe('guarda de cobertura (un tipo sin contemplar no puede desaparecer del recibo en silencio)', () => {

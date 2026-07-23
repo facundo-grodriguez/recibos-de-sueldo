@@ -5,7 +5,7 @@ import { generarGraficoTortaSvg } from './generar-grafico-torta-svg';
 import { CATEGORIAS_CONTRIBUCION_ORDEN } from './etiquetas-costo-laboral';
 import { montoEnPalabras } from './monto-en-palabras';
 import { NOMBRES_MES } from './nombre-mes';
-import { ReciboSnapshot, ReciboSnapshotConcepto } from './recibo-snapshot';
+import { ReciboSnapshot, ReciboSnapshotConcepto, ReciboSnapshotDetalleCategoria } from './recibo-snapshot';
 
 /**
  * Guarda de cobertura (a propósito, ver clasificacion-concepto.ts): las 4
@@ -138,22 +138,28 @@ function envolverTabla(filasHtml: string, filaTotal: string, mostrarCalculo: boo
   </table>`;
 }
 
+function filaDetalleCategoria(detalle: ReciboSnapshotDetalleCategoria): string {
+  const subFilas = [
+    detalle.empleador > 0 ? `<span>Empleador: ${formatearMonto(detalle.empleador)}</span>` : '',
+    detalle.trabajador > 0 ? `<span>Trabajador: ${formatearMonto(detalle.trabajador)}</span>` : '',
+  ].filter(Boolean).join('');
+
+  return `<div class="detalle-item">
+    <div class="detalle-item-total"><span>${escaparHtml(detalle.etiqueta)}</span><span class="monto">${formatearMonto(detalle.total)}</span></div>
+    <div class="detalle-item-sub">${subFilas}</div>
+  </div>`;
+}
+
 /**
  * Genera el HTML completo del recibo a partir de un snapshot ya resuelto:
  * las 6 secciones obligatorias del Anexo III (encabezado del empleador,
  * ficha de identificación, contribuciones del empleador, remuneración
- * bruta y deducciones, remuneración neta, firma) + el gráfico de torta
- * como complemento visual (decisión de producto, ADR-080 — no es una
- * sección obligatoria en sí, pero ayuda a visualizar de un vistazo el
- * gasto total del empleador). Puppeteer solo convierte este HTML a PDF —
- * toda la estructura del documento vive acá, en el dominio.
- *
- * "Detalle de composición salarial" (el cruce Empleador/Trabajador por
- * categoría) se sigue calculando (`detalleComposicionSalarial` en el
- * snapshot, insumo del gráfico) pero deliberadamente no se imprime como
- * sección propia (decisión de producto, 2026-07-23): duplicaba, categoría
- * por categoría, datos que ya están completos en "Contribuciones del
- * empleador" y en "Deducciones" — ninguna de las 6 secciones obligatorias.
+ * bruta y deducciones, remuneración neta, firma) + dos complementos
+ * (decisión de producto, ADR-080) que no son obligatorios en sí pero se
+ * mantienen porque agregan valor real: "Detalle de composición salarial"
+ * (cruce Empleador/Trabajador por categoría) y el gráfico de torta del
+ * gasto del empleador. Puppeteer solo convierte este HTML a PDF — toda la
+ * estructura del documento vive acá, en el dominio.
  *
  * Layout fluido a propósito (flex/grid, sin posiciones ni tamaños fijos):
  * el motor de ajuste a una página (PuppeteerGeneradorPdf) mide la altura
@@ -161,7 +167,8 @@ function envolverTabla(filasHtml: string, filaTotal: string, mostrarCalculo: boo
  * ADR de rediseño de plantilla. Ninguna sección sin datos reserva espacio.
  */
 export function generarHtmlRecibo(snapshot: ReciboSnapshot): string {
-  const { empresa, empleado, periodo, conceptos, totales, segmentosCostoLaboral } = snapshot;
+  const { empresa, empleado, periodo, conceptos, totales, segmentosCostoLaboral, detalleComposicionSalarial } =
+    snapshot;
 
   // El Excel oficial trae Remunerativo y No remunerativo como dos tablas
   // separadas dentro de "Remuneración bruta y deducciones" (sección 4 de
@@ -269,10 +276,21 @@ export function generarHtmlRecibo(snapshot: ReciboSnapshot): string {
   .destacado.costo-laboral .etiqueta-destacado { color: #d8d6cb; }
   .destacado.costo-laboral .monto-destacado { font-size: 16px; color: #fdfdfb; }
 
-  /* El gráfico de torta queda solo (sin "Detalle de composición" al lado,
-     ver generarHtmlRecibo) — centrado, ya no reparte el ancho con nada más. */
-  .pie-documento { display: flex; justify-content: center; margin-top: 10px; }
-  .grafico-container { max-width: 230px; display: flex; flex-direction: column; align-items: center; gap: 8px; }
+  .pie-documento { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-start; margin-top: 6px; }
+  /* Grid de 2 columnas fijas (no flex-wrap orgánico): la cantidad de
+     categorías con importe varía de un recibo a otro, pero la estructura
+     visual de "dos columnas" se mantiene siempre igual, sin línea divisoria,
+     aunque quede una celda vacía al final con un número impar de categorías. */
+  .detalle-composicion { flex: 3; min-width: 220px; display: grid; grid-template-columns: 1fr 1fr; gap: 4px 20px; align-content: start; }
+  .detalle-item { font-size: 9.5px; }
+  .detalle-item-total { display: flex; justify-content: space-between; font-weight: 600; }
+  .detalle-item-total .monto { font-variant-numeric: tabular-nums; }
+  .detalle-item-sub { display: flex; gap: 10px; color: #767568; }
+
+  /* El gráfico sigue siendo un complemento, no el protagonista, pero con más
+     presencia para equilibrar mejor contra el detalle de composición (que
+     ocupa siempre sus 2 columnas completas). */
+  .grafico-container { flex: 1; max-width: 230px; display: flex; flex-direction: column; align-items: center; gap: 8px; }
   .grafico-container svg { width: 92px; height: 92px; flex-shrink: 0; }
   ul.leyenda { list-style: none; margin: 0; padding: 0; font-size: 8px; width: 100%; }
   ul.leyenda li { margin-bottom: 2px; }
@@ -327,6 +345,9 @@ export function generarHtmlRecibo(snapshot: ReciboSnapshot): string {
   </div>
 
   <div class="pie-documento">
+    <div class="detalle-composicion">
+      ${detalleComposicionSalarial.map(filaDetalleCategoria).join('') || '<p>—</p>'}
+    </div>
     <div class="grafico-container">
       ${generarGraficoTortaSvg(segmentosCostoLaboral)}
       <ul class="leyenda">${leyendaGrafico}</ul>
