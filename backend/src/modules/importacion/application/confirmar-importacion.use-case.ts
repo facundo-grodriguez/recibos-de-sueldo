@@ -1,6 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { DomainError } from '../../../shared/errors/domain-error';
 import { NotFoundError } from '../../../shared/errors/not-found-error';
+import { parsearFechaTolerante } from '../../../shared/utils/parsear-fecha-tolerante';
 import { EMPLEADO_REPOSITORY, EmpleadoRepository } from '../../empleados/domain/empleado.repository';
 import { EMPRESA_REPOSITORY, EmpresaRepository } from '../../empresas/domain/empresa.repository';
 import { PERFIL_MAPEO_REPOSITORY, PerfilMapeoRepository } from '../../mapeo/domain/perfil-mapeo.repository';
@@ -59,6 +60,13 @@ export class ConfirmarImportacionUseCase {
    * patrón anterior de un `findByCuilAndEmpresa` + `create` por CUIL adentro
    * de un `for` (perfil de rendimiento, 2026-07-19: hasta 2 round-trips por
    * empleado, secuenciales).
+   *
+   * Etapa "primera importación": junto con nombre/apellido/cuil, un empleado
+   * NUEVO se da de alta con su ficha (categoría/fecha de ingreso/legajo/
+   * banco) si el Excel la trajo en su fila ancla (`filas.find` ya devuelve
+   * esa fila — es la primera del archivo con ese CUIL). Un empleado que YA
+   * existía nunca se toca acá, aunque el Excel traiga estos datos: esta
+   * etapa es solo alta, no sincroniza empleados existentes.
    */
   private async crearEmpleadosFaltantes(empresaId: string, importacion: Importacion): Promise<void> {
     const cuils = importacion.cuilsUnicosValidos();
@@ -73,7 +81,16 @@ export class ConfirmarImportacionUseCase {
       .filter((cuil) => !cuilsExistentes.has(cuil))
       .map((cuil) => importacion.filas.find((fila) => fila.cuil === cuil))
       .filter((fila): fila is NonNullable<typeof fila> => fila !== undefined)
-      .map((fila) => ({ empresaId, nombre: fila.nombre, apellido: fila.apellido, cuil: fila.cuil }));
+      .map((fila) => ({
+        empresaId,
+        nombre: fila.nombre,
+        apellido: fila.apellido,
+        cuil: fila.cuil,
+        categoria: fila.categoria,
+        fechaIngreso: parsearFechaTolerante(fila.fechaIngreso),
+        legajo: fila.legajo,
+        banco: fila.banco,
+      }));
 
     await this.empleadoRepository.crearVarios(datosNuevos);
   }

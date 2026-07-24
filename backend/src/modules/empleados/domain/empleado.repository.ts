@@ -5,6 +5,16 @@ export interface CrearEmpleadoData {
   nombre: string;
   apellido: string;
   cuil: string;
+  /**
+   * Ficha del empleado (etapa "primera importación"): opcionales, se
+   * completan solo si el Excel de la primera importación los trajo en la
+   * fila ancla de ese empleado (ver ConfirmarImportacionUseCase). Ausentes
+   * en el alta manual y en cualquier importación posterior.
+   */
+  categoria?: string | null;
+  fechaIngreso?: Date | null;
+  legajo?: string | null;
+  banco?: string | null;
 }
 
 export interface ActualizarEmpleadoData {

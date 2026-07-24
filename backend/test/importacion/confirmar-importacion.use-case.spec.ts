@@ -63,6 +63,10 @@ class EmpleadoRepositoryFake implements EmpleadoRepository {
       apellido: data.apellido,
       cuil: data.cuil,
       estado: 'activo',
+      categoria: data.categoria,
+      fechaIngreso: data.fechaIngreso,
+      legajo: data.legajo,
+      banco: data.banco,
     });
     this.empleados.push(empleado);
     return empleado;
@@ -265,7 +269,16 @@ class ImportacionRepositoryFake implements ImportacionRepository {
 }
 
 function filaValida(
-  overrides: Partial<{ id: string; numeroFila: number; cuil: string; concepto: string }> = {},
+  overrides: Partial<{
+    id: string;
+    numeroFila: number;
+    cuil: string;
+    concepto: string;
+    legajo: string | null;
+    categoria: string | null;
+    fechaIngreso: string | null;
+    banco: string | null;
+  }> = {},
 ): ImportacionFila {
   return ImportacionFila.create({
     id: overrides.id ?? 'fila-1',
@@ -278,6 +291,10 @@ function filaValida(
     monto: 1500,
     valida: true,
     errorMensaje: null,
+    legajo: overrides.legajo,
+    categoria: overrides.categoria,
+    fechaIngreso: overrides.fechaIngreso,
+    banco: overrides.banco,
   });
 }
 
@@ -437,5 +454,78 @@ describe('ConfirmarImportacionUseCase', () => {
     });
 
     expect(resultado.filas[0].clasificacion?.tipo).toBe('remunerativo');
+  });
+
+  describe('ficha del empleado (etapa "primera importación")', () => {
+    it('da de alta un empleado NUEVO con categoria/fechaIngreso/legajo/banco cuando la fila ancla los trae', async () => {
+      importacionRepository.seed(
+        importacionBase({
+          filas: [
+            filaValida({
+              cuil: '27309876542',
+              legajo: '0001',
+              categoria: 'Vendedor A',
+              fechaIngreso: '15/05/2015',
+              banco: 'Banco Nación',
+            }),
+          ],
+        }),
+      );
+
+      await useCase.execute({ importacionId: 'importacion-1', empresaId: EMPRESA_ID, usuarioId: USUARIO_ID });
+
+      expect(empleadoRepository.empleados).toHaveLength(1);
+      const [empleado] = empleadoRepository.empleados;
+      expect(empleado.categoria).toBe('Vendedor A');
+      expect(empleado.legajo).toBe('0001');
+      expect(empleado.banco).toBe('Banco Nación');
+      expect(empleado.fechaIngreso?.toISOString()).toBe('2015-05-15T00:00:00.000Z');
+    });
+
+    it('no toca la ficha de un empleado que YA existía, aunque la importación traiga otros datos', async () => {
+      await empleadoRepository.create({
+        empresaId: EMPRESA_ID,
+        nombre: 'Juan',
+        apellido: 'Perez',
+        cuil: '27309876542',
+        categoria: 'Encargado', // ficha ya cargada de antes
+      });
+
+      importacionRepository.seed(
+        importacionBase({
+          filas: [filaValida({ cuil: '27309876542', categoria: 'Vendedor A', legajo: '9999' })],
+        }),
+      );
+
+      await useCase.execute({ importacionId: 'importacion-1', empresaId: EMPRESA_ID, usuarioId: USUARIO_ID });
+
+      expect(empleadoRepository.empleados).toHaveLength(1);
+      const [empleado] = empleadoRepository.empleados;
+      expect(empleado.categoria).toBe('Encargado'); // se mantiene el ya cargado, nunca se pisa
+      expect(empleado.legajo).toBeNull();
+    });
+
+    it('una fecha de ingreso no interpretable no bloquea el alta: el empleado se crea igual, sin esa fecha', async () => {
+      importacionRepository.seed(
+        importacionBase({ filas: [filaValida({ cuil: '27309876542', fechaIngreso: 'no-es-una-fecha' })] }),
+      );
+
+      await useCase.execute({ importacionId: 'importacion-1', empresaId: EMPRESA_ID, usuarioId: USUARIO_ID });
+
+      expect(empleadoRepository.empleados).toHaveLength(1);
+      expect(empleadoRepository.empleados[0].fechaIngreso).toBeNull();
+    });
+
+    it('un empleado nuevo sin ficha en el archivo se crea igual, sin ficha (como hoy)', async () => {
+      importacionRepository.seed(importacionBase({ filas: [filaValida({ cuil: '27309876542' })] }));
+
+      await useCase.execute({ importacionId: 'importacion-1', empresaId: EMPRESA_ID, usuarioId: USUARIO_ID });
+
+      const [empleado] = empleadoRepository.empleados;
+      expect(empleado.categoria).toBeNull();
+      expect(empleado.fechaIngreso).toBeNull();
+      expect(empleado.legajo).toBeNull();
+      expect(empleado.banco).toBeNull();
+    });
   });
 });

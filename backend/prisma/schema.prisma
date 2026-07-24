@@ -148,6 +148,18 @@ model ImportacionFila {
   // "CUIL: se le quitaron los guiones"), puramente informativas.
   correcciones String[] @default([])
 
+  // Etapa "primera importación": datos de ficha del empleado, crudos tal cual
+  // vienen del Excel (se parsean/normalizan recién al confirmar). Solo tienen
+  // valor en la fila ancla de cada empleado (misma fila que trae cuil/nombre/
+  // apellido completos) — en las filas heredadas quedan null, igual que
+  // cuil/nombre/apellido antes de heredarse. Se usan una única vez, al dar de
+  // alta un empleado NUEVO al confirmar (ConfirmarImportacionUseCase); nunca
+  // actualizan la ficha de un empleado ya existente.
+  legajo       String?
+  categoria    String?
+  fechaIngreso String? @map("fecha_ingreso")
+  banco        String?
+
   importacion Importacion @relation(fields: [importacionId], references: [id], onDelete: Cascade)
 
   @@index([importacionId])

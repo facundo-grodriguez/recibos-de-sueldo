@@ -18,4 +18,26 @@ export interface FilaCanonica {
    */
   unidad?: string;
   base?: string;
+  /**
+   * true cuando el conector completó cuil/nombre/apellido heredándolos de una
+   * fila ancla anterior del mismo empleado (ver excel-conector-importacion),
+   * en vez de venir cargados en esta fila. Le indica al validador que no
+   * evalúe esos tres campos por fila: el aviso de normalización ya se generó
+   * una sola vez, en la fila ancla (ADR-072, opción B).
+   */
+  identidadHeredada?: boolean;
+  /**
+   * Datos de la ficha del empleado (etapa "primera importación"), crudos tal
+   * cual vienen del Excel. Solo tienen valor en la fila ancla de cada
+   * empleado (misma fila que trae cuil/nombre/apellido completos) — nunca se
+   * heredan a las filas siguientes, a diferencia de la identidad: si no se
+   * completan en la ancla, quedan ausentes para ese empleado en esta
+   * importación. Se usan una única vez, al dar de alta un empleado NUEVO al
+   * confirmar (ver ConfirmarImportacionUseCase) — nunca actualizan la ficha
+   * de un empleado ya existente.
+   */
+  legajo?: string;
+  categoria?: string;
+  fechaIngreso?: string;
+  banco?: string;
 }

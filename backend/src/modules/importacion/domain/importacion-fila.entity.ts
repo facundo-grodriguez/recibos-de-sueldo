@@ -19,6 +19,11 @@ export interface ImportacionFilaProps {
   base?: number | null;
   /** Normalizaciones de formato aplicadas sin bloquear la fila (ver validarFilaImportacion). */
   correcciones?: string[];
+  /** Ficha del empleado (etapa "primera importación", ver FilaCanonica) — crudos, sin parsear todavía. */
+  legajo?: string | null;
+  categoria?: string | null;
+  fechaIngreso?: string | null;
+  banco?: string | null;
 }
 
 export class ImportacionFila {
@@ -37,6 +42,10 @@ export class ImportacionFila {
   public readonly unidad: string | null;
   public readonly base: number | null;
   public readonly correcciones: string[];
+  public readonly legajo: string | null;
+  public readonly categoria: string | null;
+  public readonly fechaIngreso: string | null;
+  public readonly banco: string | null;
 
   private constructor(props: ImportacionFilaProps) {
     if (props.valida && props.monto === null) {
@@ -60,6 +69,10 @@ export class ImportacionFila {
     this.unidad = props.unidad ?? null;
     this.base = props.base ?? null;
     this.correcciones = props.correcciones ?? [];
+    this.legajo = props.legajo ?? null;
+    this.categoria = props.categoria ?? null;
+    this.fechaIngreso = props.fechaIngreso ?? null;
+    this.banco = props.banco ?? null;
   }
 
   static create(props: ImportacionFilaProps): ImportacionFila {

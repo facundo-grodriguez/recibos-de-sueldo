@@ -178,5 +178,40 @@ describe('validarFilaImportacion', () => {
         expect(resultado.datos.correcciones).toEqual([]);
       }
     });
+
+    describe('identidadHeredada (ADR-072, opción B): no repetir el aviso de CUIL/nombre/apellido por fila', () => {
+      it('no reporta corrección de CUIL/nombre/apellido en una fila con identidad heredada, aunque el valor heredado tuviera formato sucio', () => {
+        const resultado = validarFilaImportacion(
+          filaBase({ cuil: '27-30987654-2', nombre: '  Juan  ', apellido: ' Perez', identidadHeredada: true }),
+        );
+
+        expect(resultado.valida).toBe(true);
+        if (resultado.valida) {
+          expect(resultado.datos.correcciones).toEqual([]);
+        }
+      });
+
+      it('sigue reportando correcciones de concepto y monto en una fila con identidad heredada (son genuinamente por línea)', () => {
+        const resultado = validarFilaImportacion(
+          filaBase({ identidadHeredada: true, concepto: 'Antigüedad ', monto: '300,00' }),
+        );
+
+        expect(resultado.valida).toBe(true);
+        if (resultado.valida) {
+          expect(resultado.datos.correcciones).toEqual(
+            expect.arrayContaining([expect.stringContaining('Concepto'), expect.stringContaining('Monto')]),
+          );
+        }
+      });
+
+      it('un CUIL heredado igual sigue validándose (inválido → bloquea la fila igual que antes)', () => {
+        const resultado = validarFilaImportacion(filaBase({ cuil: '27309876540', identidadHeredada: true }));
+
+        expect(resultado.valida).toBe(false);
+        if (!resultado.valida) {
+          expect(resultado.error).toMatch(/CUIL inválido/);
+        }
+      });
+    });
   });
 });

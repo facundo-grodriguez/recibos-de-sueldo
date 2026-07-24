@@ -13,6 +13,17 @@ interface IdentidadPrevia {
   apellido: string;
 }
 
+// La columna de fecha de ingreso admite algunos alias de encabezado (a
+// diferencia de las otras columnas de ficha, que son de una sola palabra):
+// quien arma el Excel puede escribir cualquiera de estos y el parser los
+// entiende igual, sin que el usuario tenga que acertar el nombre exacto.
+const CLAVES_FECHA_INGRESO = ['fecha ingreso', 'fecha de ingreso', 'fechaingreso'];
+
+/** Primer alias de "fecha ingreso" presente en el registro normalizado, o undefined si no vino ninguno. */
+function valorFechaIngreso(registro: Record<string, string>): string | undefined {
+  return CLAVES_FECHA_INGRESO.map((clave) => registro[clave]).find((valor) => valor !== undefined);
+}
+
 /** Texto plano de una celda, cubriendo los tipos que exceljs puede devolver (texto enriquecido, fórmulas, fechas). */
 function textoDeCelda(valor: ExcelJS.CellValue): string {
   if (valor === null || valor === undefined) return '';
@@ -92,14 +103,17 @@ export class ExcelConectorImportacion implements ConectorImportacion {
       // sí los traía completos — evita repetirlos en cada concepto del mismo
       // empleado. Nunca se hereda si solo alguno de los 3 falta: eso sigue
       // siendo un dato faltante real, no una repetición intencional.
+      //
+      // El aviso de normalización de esa identidad (ADR-072, opción B) ya se
+      // generó una sola vez, en la fila ancla que la trajo completa: acá solo
+      // se marca `identidadHeredada` para que el validador sepa que estos tres
+      // campos son una copia y no vuelva a evaluarlos por fila.
+      let identidadHeredada: true | undefined;
       if (!cuil.trim() && !nombre.trim() && !apellido.trim() && identidadPrevia) {
         cuil = identidadPrevia.cuil;
         nombre = identidadPrevia.nombre;
         apellido = identidadPrevia.apellido;
-        correcciones.push({
-          numeroFila,
-          mensaje: `CUIL, nombre y apellido heredados de la fila ${identidadPrevia.numeroFila}`,
-        });
+        identidadHeredada = true;
       } else if (cuil.trim() && nombre.trim() && apellido.trim()) {
         identidadPrevia = { numeroFila, cuil, nombre, apellido };
       }
@@ -113,6 +127,17 @@ export class ExcelConectorImportacion implements ConectorImportacion {
         monto: registro.monto ?? '',
         unidad: registro.unidad,
         base: registro.base,
+        identidadHeredada,
+        // Etapa "primera importación" (ver FilaCanonica): igual que
+        // unidad/base, se leen tal cual vienen en esta fila, sin heredarlas
+        // de otra — la convención es completarlas solo en la fila ancla de
+        // cada empleado; si se completan en otra fila, no se van a tomar
+        // (ConfirmarImportacionUseCase solo mira la primera fila de cada
+        // CUIL al dar de alta un empleado nuevo).
+        legajo: registro.legajo,
+        categoria: registro.categoria,
+        fechaIngreso: valorFechaIngreso(registro),
+        banco: registro.banco,
       });
     }
 

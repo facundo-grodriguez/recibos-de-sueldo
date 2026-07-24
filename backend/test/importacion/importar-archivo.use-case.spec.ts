@@ -286,4 +286,91 @@ describe('ImportarArchivoUseCase', () => {
       expect(fila.correcciones).toEqual([]);
     });
   });
+
+  describe('ficha del empleado (etapa "primera importación")', () => {
+    it('propaga legajo/categoria/fechaIngreso/banco a la fila creada, tal cual vinieron', async () => {
+      conectorExcel.resultado = {
+        filas: [
+          filaCanonica({ legajo: '0001', categoria: 'Vendedor A', fechaIngreso: '15/05/2015', banco: 'Banco Nación' }),
+        ],
+        correcciones: [],
+      };
+
+      await useCase.execute({
+        empresaId: EMPRESA_ID,
+        usuarioId: USUARIO_ID,
+        anio: 2026,
+        mes: 7,
+        nombreArchivo: 'liquidacion.xlsx',
+        contenido: Buffer.from(''),
+      });
+
+      const fila = importacionRepository.ultimoCreate!.filas[0];
+      expect(fila).toMatchObject({
+        legajo: '0001',
+        categoria: 'Vendedor A',
+        fechaIngreso: '15/05/2015',
+        banco: 'Banco Nación',
+      });
+    });
+
+    it('guarda null (no undefined ni cadena vacía) cuando la ficha no vino en el archivo', async () => {
+      conectorExcel.resultado = { filas: [filaCanonica({})], correcciones: [] };
+
+      await useCase.execute({
+        empresaId: EMPRESA_ID,
+        usuarioId: USUARIO_ID,
+        anio: 2026,
+        mes: 7,
+        nombreArchivo: 'liquidacion.xlsx',
+        contenido: Buffer.from(''),
+      });
+
+      const fila = importacionRepository.ultimoCreate!.filas[0];
+      expect(fila.legajo).toBeNull();
+      expect(fila.categoria).toBeNull();
+      expect(fila.fechaIngreso).toBeNull();
+      expect(fila.banco).toBeNull();
+    });
+
+    it('recorta espacios de más y trata los espacios solos como ausente', async () => {
+      conectorExcel.resultado = {
+        filas: [filaCanonica({ legajo: '  0001  ', categoria: '   ' })],
+        correcciones: [],
+      };
+
+      await useCase.execute({
+        empresaId: EMPRESA_ID,
+        usuarioId: USUARIO_ID,
+        anio: 2026,
+        mes: 7,
+        nombreArchivo: 'liquidacion.xlsx',
+        contenido: Buffer.from(''),
+      });
+
+      const fila = importacionRepository.ultimoCreate!.filas[0];
+      expect(fila.legajo).toBe('0001');
+      expect(fila.categoria).toBeNull();
+    });
+
+    it('también se propaga en una fila inválida (no depende de la validez de la liquidación)', async () => {
+      conectorExcel.resultado = {
+        filas: [filaCanonica({ concepto: '', legajo: '0001' })], // concepto vacío -> fila inválida
+        correcciones: [],
+      };
+
+      await useCase.execute({
+        empresaId: EMPRESA_ID,
+        usuarioId: USUARIO_ID,
+        anio: 2026,
+        mes: 7,
+        nombreArchivo: 'liquidacion.xlsx',
+        contenido: Buffer.from(''),
+      });
+
+      const fila = importacionRepository.ultimoCreate!.filas[0];
+      expect(fila.valida).toBe(false);
+      expect(fila.legajo).toBe('0001');
+    });
+  });
 });

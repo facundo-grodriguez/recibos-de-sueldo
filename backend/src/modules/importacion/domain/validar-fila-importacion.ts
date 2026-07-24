@@ -70,14 +70,19 @@ function parsearUnidadOpcional(raw: string | undefined): string | null {
 function detectarCorrecciones(fila: FilaCanonica, limpio: { cuil: Cuil; nombre: string; apellido: string; concepto: string }): string[] {
   const correcciones: string[] = [];
 
-  if (fila.cuil.trim() !== limpio.cuil.value) {
-    correcciones.push('CUIL: se normalizó quitando espacios, guiones o puntos');
-  }
-  if (fila.nombre !== limpio.nombre) {
-    correcciones.push('Nombre: se recortaron espacios de más');
-  }
-  if (fila.apellido !== limpio.apellido) {
-    correcciones.push('Apellido: se recortaron espacios de más');
+  // Si esta fila heredó cuil/nombre/apellido de su fila ancla (ADR-072,
+  // opción B), esos tres ya se evaluaron y avisaron una sola vez ahí: acá
+  // serían siempre una repetición del mismo aviso, así que se saltan.
+  if (!fila.identidadHeredada) {
+    if (fila.cuil.trim() !== limpio.cuil.value) {
+      correcciones.push('CUIL: se normalizó quitando espacios, guiones o puntos');
+    }
+    if (fila.nombre !== limpio.nombre) {
+      correcciones.push('Nombre: se recortaron espacios de más');
+    }
+    if (fila.apellido !== limpio.apellido) {
+      correcciones.push('Apellido: se recortaron espacios de más');
+    }
   }
   if (fila.concepto !== limpio.concepto) {
     correcciones.push('Concepto: se recortaron espacios de más');

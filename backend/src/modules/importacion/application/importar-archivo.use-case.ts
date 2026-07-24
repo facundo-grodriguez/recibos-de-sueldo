@@ -22,6 +22,18 @@ import {
 } from '../domain/importacion.repository';
 import { validarFilaImportacion } from '../domain/validar-fila-importacion';
 
+/**
+ * Ficha del empleado (etapa "primera importación", ver FilaCanonica): dato
+ * crudo opcional → texto recortado o `null` si vino vacío/ausente. Mismo
+ * criterio que `unidad`/`base` en `validar-fila-importacion.ts`, pero estos 4
+ * campos no participan de la validación de la fila (nunca bloquean, no son
+ * datos de liquidación) — por eso se normalizan acá y no ahí.
+ */
+function datoFichaOpcional(valor: string | undefined): string | null {
+  const texto = valor?.trim();
+  return texto ? texto : null;
+}
+
 export interface ImportarArchivoInput {
   empresaId: string;
   usuarioId: string;
@@ -97,6 +109,10 @@ export class ImportarArchivoUseCase {
           unidad: resultado.datos.unidad,
           base: resultado.datos.base,
           correcciones: [...correccionesDeEstaFila, ...resultado.datos.correcciones],
+          legajo: datoFichaOpcional(fila.legajo),
+          categoria: datoFichaOpcional(fila.categoria),
+          fechaIngreso: datoFichaOpcional(fila.fechaIngreso),
+          banco: datoFichaOpcional(fila.banco),
         };
       }
 
@@ -111,6 +127,10 @@ export class ImportarArchivoUseCase {
         valida: false,
         errorMensaje: resultado.error,
         correcciones: correccionesDeEstaFila,
+        legajo: datoFichaOpcional(fila.legajo),
+        categoria: datoFichaOpcional(fila.categoria),
+        fechaIngreso: datoFichaOpcional(fila.fechaIngreso),
+        banco: datoFichaOpcional(fila.banco),
       };
     });
 

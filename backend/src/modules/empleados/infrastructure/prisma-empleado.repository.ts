@@ -18,6 +18,10 @@ export class PrismaEmpleadoRepository implements EmpleadoRepository {
         nombre: data.nombre,
         apellido: data.apellido,
         cuil: data.cuil,
+        categoria: data.categoria,
+        fechaIngreso: data.fechaIngreso,
+        legajo: data.legajo,
+        banco: data.banco,
       },
     });
     return Empleado.create(registro);
@@ -33,6 +37,10 @@ export class PrismaEmpleadoRepository implements EmpleadoRepository {
         nombre: dato.nombre,
         apellido: dato.apellido,
         cuil: dato.cuil,
+        categoria: dato.categoria,
+        fechaIngreso: dato.fechaIngreso,
+        legajo: dato.legajo,
+        banco: dato.banco,
       })),
       skipDuplicates: true,
     });

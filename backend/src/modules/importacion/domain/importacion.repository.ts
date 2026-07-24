@@ -13,6 +13,11 @@ export interface CrearImportacionFilaData {
   unidad?: string | null;
   base?: number | null;
   correcciones?: string[];
+  /** Ficha del empleado (etapa "primera importación", ver FilaCanonica) — crudos, sin parsear todavía. */
+  legajo?: string | null;
+  categoria?: string | null;
+  fechaIngreso?: string | null;
+  banco?: string | null;
 }
 
 /** Corrección puntual de una fila ya existente (sin re-subir el archivo) — mismos campos que al crearla, salvo `numeroFila` (la fila no cambia de identidad). */

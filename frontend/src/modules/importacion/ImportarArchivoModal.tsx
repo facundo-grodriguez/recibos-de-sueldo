@@ -72,16 +72,29 @@ function Formulario({ empresaId, onClose }: { empresaId: string; onClose: () => 
 
   return (
     <form onSubmit={form.onSubmit(handleSubmit)}>
-      <Stack gap="sm">
+      <Stack gap={4}>
         <Text size="sm" c="dimmed">
-          ¿No tenés el archivo armado todavía?{' '}
-          <Anchor href="/plantilla-excel-oficial-importacion-v1.xlsx" download>
-            <Group gap={4} component="span" style={{ display: 'inline-flex' }}>
-              <IconDownload size={14} />
-              Descargar plantilla de ejemplo
-            </Group>
-          </Anchor>
+          ¿No tenés el archivo armado todavía? Descargá una plantilla:
         </Text>
+        <Anchor href="/plantilla-excel-oficial-importacion-v1.xlsx" download size="sm">
+          <Group gap={4} component="span" style={{ display: 'inline-flex' }}>
+            <IconDownload size={14} />
+            Importaciones mensuales (recomendada)
+          </Group>
+        </Anchor>
+        <Anchor href="/plantilla-excel-primera-importacion-v1.xlsx" download size="sm">
+          <Group gap={4} component="span" style={{ display: 'inline-flex' }}>
+            <IconDownload size={14} />
+            Primera importación
+          </Group>
+        </Anchor>
+        <Text size="xs" c="dimmed">
+          Primera importación incluye columnas extra (legajo, categoría, fecha de ingreso, banco)
+          para cargar la ficha de cada empleado nuevo de una sola vez. Para el uso habitual, mes a
+          mes, usá la mensual.
+        </Text>
+      </Stack>
+      <Stack gap="sm">
         <Group grow>
           <NumberInput label="Año" required autoFocus {...form.getInputProps('anio')} />
           <Select

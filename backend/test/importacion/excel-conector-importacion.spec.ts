@@ -107,7 +107,7 @@ describe('ExcelConectorImportacion', () => {
   });
 
   describe('herencia de CUIL/nombre/apellido en filas repetidas (ADR-072, opción B)', () => {
-    it('hereda CUIL, nombre y apellido de la última fila completa cuando los 3 vienen vacíos', async () => {
+    it('hereda CUIL, nombre y apellido de la última fila completa cuando los 3 vienen vacíos, marcando identidadHeredada sin repetir el aviso por fila', async () => {
       const buffer = await construirBufferExcel(
         ['cuil', 'nombre', 'apellido', 'concepto', 'monto'],
         [
@@ -120,12 +120,22 @@ describe('ExcelConectorImportacion', () => {
       const { filas, correcciones } = await conector.parse(buffer);
 
       expect(filas).toHaveLength(3);
-      expect(filas[1]).toMatchObject({ cuil: '27309876542', nombre: 'Juan', apellido: 'Perez' });
-      expect(filas[2]).toMatchObject({ cuil: '27309876542', nombre: 'Juan', apellido: 'Perez' });
-      expect(correcciones).toEqual([
-        { numeroFila: 3, mensaje: 'CUIL, nombre y apellido heredados de la fila 2' },
-        { numeroFila: 4, mensaje: 'CUIL, nombre y apellido heredados de la fila 2' },
-      ]);
+      expect(filas[0].identidadHeredada).toBeUndefined();
+      expect(filas[1]).toMatchObject({
+        cuil: '27309876542',
+        nombre: 'Juan',
+        apellido: 'Perez',
+        identidadHeredada: true,
+      });
+      expect(filas[2]).toMatchObject({
+        cuil: '27309876542',
+        nombre: 'Juan',
+        apellido: 'Perez',
+        identidadHeredada: true,
+      });
+      // El aviso de normalización queda una sola vez, en la fila ancla (validarFilaImportacion),
+      // no acá: el adaptador ya no reporta nada para la mera herencia entre filas.
+      expect(correcciones).toEqual([]);
     });
 
     it('no hereda si solo alguno de los 3 campos viene vacío (sigue siendo un dato faltante real)', async () => {
@@ -168,12 +178,71 @@ describe('ExcelConectorImportacion', () => {
 
       const { filas, correcciones } = await conector.parse(buffer);
 
-      expect(filas[1]).toMatchObject({ cuil: '27309876542', nombre: 'Juan', apellido: 'Perez' });
-      expect(filas[3]).toMatchObject({ cuil: '20123456786', nombre: 'Ana', apellido: 'Gomez' });
-      expect(correcciones).toEqual([
-        { numeroFila: 3, mensaje: 'CUIL, nombre y apellido heredados de la fila 2' },
-        { numeroFila: 5, mensaje: 'CUIL, nombre y apellido heredados de la fila 4' },
-      ]);
+      expect(filas[1]).toMatchObject({ cuil: '27309876542', nombre: 'Juan', apellido: 'Perez', identidadHeredada: true });
+      expect(filas[3]).toMatchObject({ cuil: '20123456786', nombre: 'Ana', apellido: 'Gomez', identidadHeredada: true });
+      expect(correcciones).toEqual([]);
+    });
+  });
+
+  describe('columnas de ficha (etapa "primera importación")', () => {
+    it('lee legajo, categoria, fecha ingreso y banco cuando vienen en el archivo', async () => {
+      const buffer = await construirBufferExcel(
+        ['cuil', 'nombre', 'apellido', 'concepto', 'monto', 'legajo', 'categoria', 'fecha ingreso', 'banco'],
+        [['27309876542', 'Juan', 'Perez', 'Sueldo básico', 1500.5, '0001', 'Vendedor A', '15/05/2015', 'Banco Nación']],
+      );
+
+      const { filas } = await conector.parse(buffer);
+
+      expect(filas[0]).toMatchObject({
+        legajo: '0001',
+        categoria: 'Vendedor A',
+        fechaIngreso: '15/05/2015',
+        banco: 'Banco Nación',
+      });
+    });
+
+    it('acepta "fecha de ingreso" y "fechaingreso" como alias del mismo encabezado', async () => {
+      const bufferConEspacio = await construirBufferExcel(
+        ['cuil', 'nombre', 'apellido', 'concepto', 'monto', 'fecha de ingreso'],
+        [['27309876542', 'Juan', 'Perez', 'Sueldo básico', 1500.5, '15/05/2015']],
+      );
+      const bufferSinEspacio = await construirBufferExcel(
+        ['cuil', 'nombre', 'apellido', 'concepto', 'monto', 'fechaingreso'],
+        [['27309876542', 'Juan', 'Perez', 'Sueldo básico', 1500.5, '15/05/2015']],
+      );
+
+      expect((await conector.parse(bufferConEspacio)).filas[0].fechaIngreso).toBe('15/05/2015');
+      expect((await conector.parse(bufferSinEspacio)).filas[0].fechaIngreso).toBe('15/05/2015');
+    });
+
+    it('un archivo sin esas columnas sigue funcionando igual (quedan undefined, no rompe nada)', async () => {
+      const buffer = await construirBufferExcel(
+        ['cuil', 'nombre', 'apellido', 'concepto', 'monto'],
+        [['27309876542', 'Juan', 'Perez', 'Sueldo básico', 1500.5]],
+      );
+
+      const { filas } = await conector.parse(buffer);
+
+      expect(filas[0].legajo).toBeUndefined();
+      expect(filas[0].categoria).toBeUndefined();
+      expect(filas[0].fechaIngreso).toBeUndefined();
+      expect(filas[0].banco).toBeUndefined();
+    });
+
+    it('no las hereda entre filas: si una fila heredada no las trae, quedan vacías aunque la ancla sí las tuviera', async () => {
+      const buffer = await construirBufferExcel(
+        ['cuil', 'nombre', 'apellido', 'concepto', 'monto', 'legajo'],
+        [
+          ['27309876542', 'Juan', 'Perez', 'Sueldo básico', 1500.5, '0001'],
+          ['', '', '', 'Antigüedad', 300, ''],
+        ],
+      );
+
+      const { filas } = await conector.parse(buffer);
+
+      expect(filas[0].legajo).toBe('0001');
+      expect(filas[1].identidadHeredada).toBe(true);
+      expect(filas[1].legajo).toBe('');
     });
   });
 });
