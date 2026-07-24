@@ -47,6 +47,12 @@ Ver ADR-082 en `DECISIONS.md`.
 ### Verificado
 Tests unitarios nuevos: fecha futura rechazada, legajo duplicado rechazado con mensaje legible, reasignar a un empleado su propio legajo no genera un falso conflicto.
 
+## [Unreleased] — 2 fixes puntuales: dato de emisión faltante en el PDF + falso éxito al corregir una fila
+
+### Corregido
+- `plantilla-recibo.ts`: "Pago de cargas sociales" se había sacado de la ficha del recibo en un rediseño anterior, pero el dato se seguía capturando y validando como obligatorio para poder emitir, sin aparecer en ningún lado del documento. Se repone en el mismo lugar donde vivía, junto a "Lugar y fecha de pago".
+- `CorregirFilaModal.tsx`: al corregir una fila con error, el backend guarda la corrección aunque la fila siga siendo inválida (revalidación normal, no un rechazo) — pero el modal mostraba "corregida" en verde y cerraba igual, sin chequear el resultado real. Ahora, si la fila sigue inválida después de guardar, se muestra el error en el momento y el modal no se cierra.
+
 ## [Unreleased] — Sprint al primer cliente piloto (Tareas 2 a 7 del plan)
 
 Cierra las 7 tareas bloqueantes identificadas en la auditoría previa al primer cliente (`esto-va-a-ser-adaptive-seahorse.md`, fuera de este repo) — absorbe y cierra las Etapas 4, 5 y 6 del plan de MVP Comercial. D0 (3 preguntas al prospecto) y Tarea 1 (acuerdo legal, con un tercero) quedan fuera de este changelog por no ser cambios de código.
