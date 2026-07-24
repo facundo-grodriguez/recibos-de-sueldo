@@ -1,13 +1,13 @@
 import { Injectable } from '@nestjs/common';
-import { PerfilMapeoConcepto as PerfilMapeoConceptoRegistro } from '@prisma/client';
+import { ConceptoCatalogo as ConceptoCatalogoRegistro } from '@prisma/client';
 import { PrismaService } from '../../../infra/db/prisma.service';
 import { ClasificacionConcepto } from '../../../shared/value-objects/clasificacion-concepto';
 import { normalizarConcepto } from '../../../shared/utils/normalizar-concepto';
-import { PerfilMapeoConcepto } from '../domain/perfil-mapeo-concepto.entity';
-import { DefinirMapeoData, PerfilMapeoRepository } from '../domain/perfil-mapeo.repository';
+import { ConceptoCatalogo } from '../domain/concepto-catalogo.entity';
+import { DefinirConceptoCatalogoData, ConceptoCatalogoRepository } from '../domain/concepto-catalogo.repository';
 
-function aDominio(registro: PerfilMapeoConceptoRegistro): PerfilMapeoConcepto {
-  return PerfilMapeoConcepto.create({
+function aDominio(registro: ConceptoCatalogoRegistro): ConceptoCatalogo {
+  return ConceptoCatalogo.create({
     id: registro.id,
     empresaId: registro.empresaId,
     conceptoOriginal: registro.conceptoOriginal,
@@ -16,13 +16,13 @@ function aDominio(registro: PerfilMapeoConceptoRegistro): PerfilMapeoConcepto {
 }
 
 @Injectable()
-export class PrismaPerfilMapeoRepository implements PerfilMapeoRepository {
+export class PrismaConceptoCatalogoRepository implements ConceptoCatalogoRepository {
   constructor(private readonly prisma: PrismaService) {}
 
-  async upsert(data: DefinirMapeoData): Promise<PerfilMapeoConcepto> {
+  async upsert(data: DefinirConceptoCatalogoData): Promise<ConceptoCatalogo> {
     const conceptoNormalizado = normalizarConcepto(data.conceptoOriginal);
 
-    const registro = await this.prisma.perfilMapeoConcepto.upsert({
+    const registro = await this.prisma.conceptoCatalogo.upsert({
       where: {
         empresaId_conceptoNormalizado: { empresaId: data.empresaId, conceptoNormalizado },
       },
@@ -43,23 +43,23 @@ export class PrismaPerfilMapeoRepository implements PerfilMapeoRepository {
     return aDominio(registro);
   }
 
-  async findAllByEmpresa(empresaId: string): Promise<PerfilMapeoConcepto[]> {
-    const registros = await this.prisma.perfilMapeoConcepto.findMany({ where: { empresaId } });
+  async findAllByEmpresa(empresaId: string): Promise<ConceptoCatalogo[]> {
+    const registros = await this.prisma.conceptoCatalogo.findMany({ where: { empresaId } });
     return registros.map(aDominio);
   }
 
   async findByEmpresaAndConceptoNormalizado(
     empresaId: string,
     conceptoNormalizado: string,
-  ): Promise<PerfilMapeoConcepto | null> {
-    const registro = await this.prisma.perfilMapeoConcepto.findUnique({
+  ): Promise<ConceptoCatalogo | null> {
+    const registro = await this.prisma.conceptoCatalogo.findUnique({
       where: { empresaId_conceptoNormalizado: { empresaId, conceptoNormalizado } },
     });
     return registro ? aDominio(registro) : null;
   }
 
-  async findByIdAndEmpresa(id: string, empresaId: string): Promise<PerfilMapeoConcepto | null> {
-    const registro = await this.prisma.perfilMapeoConcepto.findFirst({ where: { id, empresaId } });
+  async findByIdAndEmpresa(id: string, empresaId: string): Promise<ConceptoCatalogo | null> {
+    const registro = await this.prisma.conceptoCatalogo.findFirst({ where: { id, empresaId } });
     return registro ? aDominio(registro) : null;
   }
 }

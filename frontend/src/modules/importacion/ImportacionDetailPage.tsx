@@ -6,9 +6,9 @@ import { IconArrowLeft } from '@tabler/icons-react';
 import { Link, useNavigate, useParams } from 'react-router';
 import { ApiError } from '../../shared/api/http';
 import { ConfirmModal } from '../../shared/ui/ConfirmModal';
+import { ClasificarConceptoModal } from '../catalogo-conceptos/ClasificarConceptoModal';
+import { useConceptosSinClasificar } from '../catalogo-conceptos/queries';
 import { EmisionSection } from '../emision/EmisionSection';
-import { MapearConceptoModal } from '../mapeo/MapearConceptoModal';
-import { useConceptosSinMapear } from '../mapeo/queries';
 import { useValidacion } from '../validacion/queries';
 import type { ImportacionFila } from './api';
 import { CorregirFilaModal } from './CorregirFilaModal';
@@ -25,13 +25,13 @@ export function ImportacionDetailPage() {
   const { empresaId, importacionId } = useParams<{ empresaId: string; importacionId: string }>();
   const navigate = useNavigate();
   const { data: importacion, isLoading, isError } = useImportacion(empresaId ?? '', importacionId ?? '');
-  const { data: conceptosPendientes } = useConceptosSinMapear(empresaId ?? '');
+  const { data: conceptosPendientes } = useConceptosSinClasificar(empresaId ?? '');
   // Reutiliza el mismo endpoint que EmisionSection (Paso 2). `.totales` se muestra siempre;
   // `.errores`/`.advertencias` (juicio de negocio) solo se leen una vez confirmada la
   // importación (ver `estadoNegocioPorCuil` más abajo y ADR-076) — nunca durante la corrección
   // línea por línea.
   const { data: validacion } = useValidacion(empresaId ?? '', importacionId ?? '');
-  const [conceptoAMapear, setConceptoAMapear] = useState<string | undefined>(undefined);
+  const [conceptoAClasificar, setConceptoAClasificar] = useState<string | undefined>(undefined);
   const [filaACorregir, setFilaACorregir] = useState<ImportacionFila | undefined>(undefined);
   const [busqueda, setBusqueda] = useState('');
   const [filtro, setFiltro] = useState<FiltroEstadoRevision>('todos');
@@ -241,13 +241,13 @@ export function ImportacionDetailPage() {
       )}
 
       {conceptosPendientes && conceptosPendientes.length > 0 && (
-        <Alert color="yellow" title="Conceptos sin mapear en esta empresa">
+        <Alert color="yellow" title="Conceptos sin clasificar en esta empresa">
           <Stack gap="xs">
             {conceptosPendientes.map((concepto) => (
               <Group key={concepto} justify="space-between">
                 <Text size="sm">{concepto}</Text>
-                <Button size="xs" variant="light" onClick={() => setConceptoAMapear(concepto)}>
-                  Mapear
+                <Button size="xs" variant="light" onClick={() => setConceptoAClasificar(concepto)}>
+                  Clasificar
                 </Button>
               </Group>
             ))}
@@ -304,11 +304,11 @@ export function ImportacionDetailPage() {
 
       {importacion.estado === 'confirmada' && <EmisionSection empresaId={empresaId} importacion={importacion} />}
 
-      <MapearConceptoModal
+      <ClasificarConceptoModal
         empresaId={empresaId}
-        concepto={conceptoAMapear}
-        onClose={() => setConceptoAMapear(undefined)}
-        onMapeado={refrescarImportacion}
+        concepto={conceptoAClasificar}
+        onClose={() => setConceptoAClasificar(undefined)}
+        onClasificado={refrescarImportacion}
       />
       <CorregirFilaModal
         empresaId={empresaId}

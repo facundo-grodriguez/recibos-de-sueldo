@@ -3,19 +3,19 @@ import { NotFoundError } from '../../../shared/errors/not-found-error';
 import { EMPRESA_REPOSITORY, EmpresaRepository } from '../../empresas/domain/empresa.repository';
 import { IMPORTACION_REPOSITORY, ImportacionRepository } from '../../importacion/domain/importacion.repository';
 
-export interface ListarConceptosSinMapearInput {
+export interface ListarConceptosSinClasificarInput {
   empresaId: string;
   usuarioId: string;
 }
 
 @Injectable()
-export class ListarConceptosSinMapearUseCase {
+export class ListarConceptosSinClasificarUseCase {
   constructor(
     @Inject(EMPRESA_REPOSITORY) private readonly empresaRepository: EmpresaRepository,
     @Inject(IMPORTACION_REPOSITORY) private readonly importacionRepository: ImportacionRepository,
   ) {}
 
-  async execute(input: ListarConceptosSinMapearInput): Promise<string[]> {
+  async execute(input: ListarConceptosSinClasificarInput): Promise<string[]> {
     const empresa = await this.empresaRepository.findByIdAndUsuario(input.empresaId, input.usuarioId);
     if (!empresa) {
       throw new NotFoundError(`Empresa "${input.empresaId}" no encontrada`);

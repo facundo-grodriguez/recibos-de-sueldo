@@ -4,7 +4,7 @@ import { NotFoundError } from '../../../shared/errors/not-found-error';
 import { parsearFechaTolerante } from '../../../shared/utils/parsear-fecha-tolerante';
 import { EMPLEADO_REPOSITORY, EmpleadoRepository } from '../../empleados/domain/empleado.repository';
 import { EMPRESA_REPOSITORY, EmpresaRepository } from '../../empresas/domain/empresa.repository';
-import { PERFIL_MAPEO_REPOSITORY, PerfilMapeoRepository } from '../../mapeo/domain/perfil-mapeo.repository';
+import { CATALOGO_CONCEPTOS_REPOSITORY, ConceptoCatalogoRepository } from '../../catalogo-conceptos/domain/concepto-catalogo.repository';
 import { Importacion } from '../domain/importacion.entity';
 import { IMPORTACION_REPOSITORY, ImportacionRepository } from '../domain/importacion.repository';
 
@@ -20,7 +20,7 @@ export class ConfirmarImportacionUseCase {
     @Inject(EMPRESA_REPOSITORY) private readonly empresaRepository: EmpresaRepository,
     @Inject(IMPORTACION_REPOSITORY) private readonly importacionRepository: ImportacionRepository,
     @Inject(EMPLEADO_REPOSITORY) private readonly empleadoRepository: EmpleadoRepository,
-    @Inject(PERFIL_MAPEO_REPOSITORY) private readonly perfilMapeoRepository: PerfilMapeoRepository,
+    @Inject(CATALOGO_CONCEPTOS_REPOSITORY) private readonly catalogoConceptosRepository: ConceptoCatalogoRepository,
   ) {}
 
   async execute(input: ConfirmarImportacionInput): Promise<Importacion> {
@@ -46,7 +46,7 @@ export class ConfirmarImportacionUseCase {
 
     await this.crearEmpleadosFaltantes(empresa.id, importacion);
 
-    // Mapeo automático (Fase 2): los conceptos que la empresa ya mapeó antes
+    // Auto-clasificación (Fase 2): los conceptos que ya están en el catálogo de la empresa
     // se clasifican solos; los que nunca vio quedan sin clasificar, visibles
     // como pendientes, sin bloquear esta confirmación (ver ADR correspondiente).
     await this.autoclasificar(empresa.id, importacion);
@@ -104,22 +104,24 @@ export class ConfirmarImportacionUseCase {
     // Una sola consulta que trae TODAS las filas sin clasificar de la
     // empresa, en vez de que `aplicarClasificacion` la repita una vez por
     // cada concepto (perfil de rendimiento, 2026-07-19).
-    const [perfiles, idsPorConcepto] = await Promise.all([
-      this.perfilMapeoRepository.findAllByEmpresa(empresaId),
+    const [conceptosCatalogo, idsPorConcepto] = await Promise.all([
+      this.catalogoConceptosRepository.findAllByEmpresa(empresaId),
       this.importacionRepository.agruparFilasSinClasificarPorConcepto(empresaId),
     ]);
-    const perfilPorConcepto = new Map(perfiles.map((perfil) => [perfil.conceptoNormalizado(), perfil]));
+    const conceptoCatalogoPorNormalizado = new Map(
+      conceptosCatalogo.map((concepto) => [concepto.conceptoNormalizado(), concepto]),
+    );
 
     await Promise.all(
       conceptosSinClasificar.map((conceptoNormalizado) => {
-        const perfil = perfilPorConcepto.get(conceptoNormalizado);
+        const concepto = conceptoCatalogoPorNormalizado.get(conceptoNormalizado);
         const ids = idsPorConcepto.get(conceptoNormalizado);
-        if (!perfil || !ids) {
+        if (!concepto || !ids) {
           return Promise.resolve();
         }
         return this.importacionRepository.actualizarClasificacionPorIds(ids, {
-          tipo: perfil.clasificacion.tipo,
-          categoriaContribucion: perfil.clasificacion.categoriaContribucion,
+          tipo: concepto.clasificacion.tipo,
+          categoriaContribucion: concepto.clasificacion.categoriaContribucion,
         });
       }),
     );

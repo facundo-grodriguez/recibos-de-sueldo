@@ -69,7 +69,7 @@ export interface ImportacionRepository {
   /**
    * Clasifica todas las filas válidas y todavía sin clasificar de ese concepto
    * (normalizado) en TODA la empresa, no solo en una importación puntual —
-   * es lo que hace "reutilizable" al mapeo. Devuelve la cantidad de filas actualizadas.
+   * es lo que hace "reutilizable" al catálogo. Devuelve la cantidad de filas actualizadas.
    */
   aplicarClasificacion(
     empresaId: string,

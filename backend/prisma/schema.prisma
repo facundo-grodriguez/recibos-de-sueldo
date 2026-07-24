@@ -1,6 +1,6 @@
 // Fase 0: entidades mínimas (Usuario, Empresa, Empleado) + AuditLog transversal.
 // Fase 1: Importacion + ImportacionFila (ingesta: conector CSV -> modelo canónico).
-// Fase 2: PerfilMapeoConcepto (mapeo de conceptos a categorías normativas, reutilizable por empresa).
+// Fase 2: ConceptoCatalogo (catálogo de conceptos clasificados por categorías normativas, reutilizable por empresa).
 // Fase 3 (Validación) no agrega tablas: calcula todo al vuelo sobre lo anterior.
 // Fase 4: Recibo (emisión inmutable) + campos de cabecera del art. 140 en Empleado/Importacion.
 
@@ -44,7 +44,7 @@ model Empresa {
   usuario              Usuario               @relation(fields: [usuarioId], references: [id])
   empleados            Empleado[]
   importaciones        Importacion[]
-  perfilMapeoConceptos PerfilMapeoConcepto[]
+  conceptosCatalogo ConceptoCatalogo[]
 
   @@unique([usuarioId, cuit])
   @@index([usuarioId])
@@ -169,7 +169,12 @@ model ImportacionFila {
 // Diccionario reutilizable por empresa: a qué categoría normativa corresponde
 // cada texto de concepto visto en las importaciones. Se define una vez y se
 // reutiliza en todos los períodos siguientes (ver docs/vision-adaptador.md).
-model PerfilMapeoConcepto {
+// Renombrado de PerfilMapeoConcepto (ver ADR-058 / rename de claridad): mismo
+// modelo, mismo mecanismo ("mapeo" era el nombre del proceso de ingreso al
+// catálogo, no del catálogo en sí). Se mantiene @@map/@map intactos — la
+// tabla física y sus columnas no cambian, este rename es solo del cliente
+// Prisma generado (TS), sin migración de base de datos.
+model ConceptoCatalogo {
   id                    String   @id @default(uuid())
   empresaId             String   @map("empresa_id")
   conceptoNormalizado   String   @map("concepto_normalizado")

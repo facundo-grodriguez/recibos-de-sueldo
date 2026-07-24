@@ -6,12 +6,12 @@ import {
   AuditLogRepository,
   CrearAuditLogEntryData,
 } from '../../src/infra/auditoria/audit-log.repository';
-import { DefinirMapeoConceptoUseCase } from '../../src/modules/mapeo/application/definir-mapeo-concepto.use-case';
-import { PerfilMapeoConcepto } from '../../src/modules/mapeo/domain/perfil-mapeo-concepto.entity';
+import { DefinirConceptoCatalogoUseCase } from '../../src/modules/catalogo-conceptos/application/definir-concepto-catalogo.use-case';
+import { ConceptoCatalogo } from '../../src/modules/catalogo-conceptos/domain/concepto-catalogo.entity';
 import {
-  DefinirMapeoData,
-  PerfilMapeoRepository,
-} from '../../src/modules/mapeo/domain/perfil-mapeo.repository';
+  DefinirConceptoCatalogoData,
+  ConceptoCatalogoRepository,
+} from '../../src/modules/catalogo-conceptos/domain/concepto-catalogo.repository';
 import { ClasificacionConcepto } from '../../src/shared/value-objects/clasificacion-concepto';
 import { normalizarConcepto } from '../../src/shared/utils/normalizar-concepto';
 import {
@@ -51,32 +51,32 @@ class EmpresaRepositoryFake implements EmpresaRepository {
   }
 }
 
-class PerfilMapeoRepositoryFake implements PerfilMapeoRepository {
-  entradas: PerfilMapeoConcepto[] = [];
+class ConceptoCatalogoRepositoryFake implements ConceptoCatalogoRepository {
+  entradas: ConceptoCatalogo[] = [];
 
-  async upsert(data: DefinirMapeoData): Promise<PerfilMapeoConcepto> {
+  async upsert(data: DefinirConceptoCatalogoData): Promise<ConceptoCatalogo> {
     const existente = await this.findByEmpresaAndConceptoNormalizado(
       data.empresaId,
       normalizarConcepto(data.conceptoOriginal),
     );
-    const perfil = PerfilMapeoConcepto.create({
-      id: existente?.id ?? `perfil-${this.entradas.length + 1}`,
+    const concepto = ConceptoCatalogo.create({
+      id: existente?.id ?? `concepto-${this.entradas.length + 1}`,
       empresaId: data.empresaId,
       conceptoOriginal: data.conceptoOriginal,
       clasificacion: ClasificacionConcepto.create(data.tipo, data.categoriaContribucion),
     });
-    this.entradas = existente ? this.entradas.map((e) => (e.id === existente.id ? perfil : e)) : [...this.entradas, perfil];
-    return perfil;
+    this.entradas = existente ? this.entradas.map((e) => (e.id === existente.id ? concepto : e)) : [...this.entradas, concepto];
+    return concepto;
   }
 
-  async findAllByEmpresa(): Promise<PerfilMapeoConcepto[]> {
+  async findAllByEmpresa(): Promise<ConceptoCatalogo[]> {
     throw new Error('no usado en este test');
   }
 
   async findByEmpresaAndConceptoNormalizado(
     empresaId: string,
     conceptoNormalizado: string,
-  ): Promise<PerfilMapeoConcepto | null> {
+  ): Promise<ConceptoCatalogo | null> {
     return (
       this.entradas.find(
         (entrada) => entrada.empresaId === empresaId && entrada.conceptoNormalizado() === conceptoNormalizado,
@@ -84,7 +84,7 @@ class PerfilMapeoRepositoryFake implements PerfilMapeoRepository {
     );
   }
 
-  async findByIdAndEmpresa(id: string, empresaId: string): Promise<PerfilMapeoConcepto | null> {
+  async findByIdAndEmpresa(id: string, empresaId: string): Promise<ConceptoCatalogo | null> {
     return this.entradas.find((entrada) => entrada.id === id && entrada.empresaId === empresaId) ?? null;
   }
 }
@@ -159,27 +159,27 @@ class ImportacionRepositoryFake implements ImportacionRepository {
   }
 }
 
-describe('DefinirMapeoConceptoUseCase', () => {
+describe('DefinirConceptoCatalogoUseCase', () => {
   let empresaRepository: EmpresaRepositoryFake;
-  let perfilMapeoRepository: PerfilMapeoRepositoryFake;
+  let catalogoConceptosRepository: ConceptoCatalogoRepositoryFake;
   let importacionRepository: ImportacionRepositoryFake;
   let auditLogRepository: AuditLogRepositoryFake;
-  let useCase: DefinirMapeoConceptoUseCase;
+  let useCase: DefinirConceptoCatalogoUseCase;
 
   beforeEach(() => {
     empresaRepository = new EmpresaRepositoryFake();
-    perfilMapeoRepository = new PerfilMapeoRepositoryFake();
+    catalogoConceptosRepository = new ConceptoCatalogoRepositoryFake();
     importacionRepository = new ImportacionRepositoryFake();
     auditLogRepository = new AuditLogRepositoryFake();
-    useCase = new DefinirMapeoConceptoUseCase(
+    useCase = new DefinirConceptoCatalogoUseCase(
       empresaRepository,
-      perfilMapeoRepository,
+      catalogoConceptosRepository,
       importacionRepository,
       auditLogRepository,
     );
   });
 
-  it('define un mapeo nuevo y aplica el backfill retroactivo', async () => {
+  it('define un concepto nuevo en el catálogo y aplica el backfill retroactivo', async () => {
     const resultado = await useCase.execute({
       empresaId: EMPRESA_ID,
       usuarioId: USUARIO_ID,
@@ -188,14 +188,14 @@ describe('DefinirMapeoConceptoUseCase', () => {
       categoriaContribucion: null,
     });
 
-    expect(resultado.perfil.conceptoOriginal).toBe('Sueldo Básico');
+    expect(resultado.concepto.conceptoOriginal).toBe('Sueldo Básico');
     expect(resultado.filasActualizadas).toBe(3);
     expect(importacionRepository.llamadasAplicarClasificacion).toEqual([
       [EMPRESA_ID, 'sueldo básico', { tipo: 'remunerativo', categoriaContribucion: null }],
     ]);
   });
 
-  it('registra una auditoría "crear" con valorAnterior nulo la primera vez que se mapea un concepto', async () => {
+  it('registra una auditoría "crear" con valorAnterior nulo la primera vez que se clasifica un concepto', async () => {
     await useCase.execute({
       empresaId: EMPRESA_ID,
       usuarioId: USUARIO_ID,
@@ -215,7 +215,7 @@ describe('DefinirMapeoConceptoUseCase', () => {
     });
   });
 
-  it('registra una auditoría "modificar" con el valor anterior cuando se redefine un concepto ya mapeado', async () => {
+  it('registra una auditoría "modificar" con el valor anterior cuando se redefine un concepto ya clasificado', async () => {
     await useCase.execute({
       empresaId: EMPRESA_ID,
       usuarioId: USUARIO_ID,
@@ -271,7 +271,7 @@ describe('DefinirMapeoConceptoUseCase', () => {
       }),
     ).rejects.toThrow(DomainError);
 
-    expect(perfilMapeoRepository.entradas).toHaveLength(0);
+    expect(catalogoConceptosRepository.entradas).toHaveLength(0);
     expect(importacionRepository.llamadasAplicarClasificacion).toHaveLength(0);
   });
 

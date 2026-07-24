@@ -37,7 +37,7 @@ const TABLAS = [
   'empleado',
   'importacion',
   'importacionFila',
-  'perfilMapeoConcepto',
+  'conceptoCatalogo',
   'recibo',
   'auditLog',
 ];

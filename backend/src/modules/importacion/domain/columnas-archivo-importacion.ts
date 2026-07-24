@@ -5,7 +5,7 @@ export const COLUMNAS_OBLIGATORIAS = ['cuil', 'nombre', 'apellido', 'concepto', 
  * espacios de más no deberían romper un archivo por lo demás válido). No se
  * fusiona con `normalizarConcepto` (mismo one-liner hoy) porque normalizan
  * cosas conceptualmente distintas: nombres de columna de un archivo vs.
- * nombres de concepto para el motor de mapeo.
+ * nombres de concepto para el catálogo de conceptos.
  */
 function normalizarEncabezado(encabezado: string): string {
   return encabezado.trim().toLowerCase();

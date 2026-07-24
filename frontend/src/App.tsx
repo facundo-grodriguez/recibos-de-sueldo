@@ -7,7 +7,7 @@ import { DashboardPage } from './modules/empresas/DashboardPage';
 import { EmpresaHomePage } from './modules/empresas/EmpresaHomePage';
 import { ImportacionDetailPage } from './modules/importacion/ImportacionDetailPage';
 import { ImportacionesPage } from './modules/importacion/ImportacionesPage';
-import { ConceptosMapeadosPage } from './modules/mapeo/ConceptosMapeadosPage';
+import { CatalogoConceptosPage } from './modules/catalogo-conceptos/CatalogoConceptosPage';
 import { ProtectedRoute } from './shared/auth/ProtectedRoute';
 import { AppShellLayout } from './shared/ui/AppShellLayout';
 
@@ -24,7 +24,7 @@ function App() {
             <Route path="/empresas/:empresaId/empleados" element={<EmpleadosPage />} />
             <Route path="/empresas/:empresaId/recibos" element={<HistorialRecibosPage />} />
             <Route path="/empresas/:empresaId/importaciones" element={<ImportacionesPage />} />
-            <Route path="/empresas/:empresaId/conceptos" element={<ConceptosMapeadosPage />} />
+            <Route path="/empresas/:empresaId/conceptos" element={<CatalogoConceptosPage />} />
             <Route
               path="/empresas/:empresaId/importaciones/:importacionId"
               element={<ImportacionDetailPage />}

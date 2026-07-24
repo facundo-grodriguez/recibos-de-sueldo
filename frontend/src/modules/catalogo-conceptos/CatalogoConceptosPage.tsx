@@ -3,18 +3,18 @@ import { IconArrowLeft } from '@tabler/icons-react';
 import { useState } from 'react';
 import { Link, useParams } from 'react-router';
 import { useEmpresa, useEmpresas } from '../empresas/queries';
-import { MapearConceptoModal } from './MapearConceptoModal';
-import { useMapeos } from './queries';
-import { ETIQUETAS_CATEGORIA_CONTRIBUCION, ETIQUETAS_TIPO_CONCEPTO, type DefinirMapeoFormValues } from './schema';
+import { ClasificarConceptoModal } from './ClasificarConceptoModal';
+import { useCatalogoConceptos } from './queries';
+import { ETIQUETAS_CATEGORIA_CONTRIBUCION, ETIQUETAS_TIPO_CONCEPTO, type DefinirConceptoCatalogoFormValues } from './schema';
 
 /** Catálogo de conceptos ya clasificados de la empresa — cierra un pendiente viejo (ADR-064) y
- * habilita corregir una clasificación equivocada (Etapa 3): antes, un concepto ya mapeado
- * desaparecía para siempre de la alerta de "sin mapear" y no había forma de volver a editarlo. */
-export function ConceptosMapeadosPage() {
+ * habilita corregir una clasificación equivocada (Etapa 3): antes, un concepto ya clasificado
+ * desaparecía para siempre de la alerta de "sin clasificar" y no había forma de volver a editarlo. */
+export function CatalogoConceptosPage() {
   const { empresaId } = useParams<{ empresaId: string }>();
   const { isLoading: cargandoEmpresas } = useEmpresas();
   const empresa = useEmpresa(empresaId);
-  const { data: mapeos, isLoading, isError } = useMapeos(empresaId ?? '');
+  const { data: conceptos, isLoading, isError } = useCatalogoConceptos(empresaId ?? '');
   const [conceptoAEditar, setConceptoAEditar] = useState<string | undefined>(undefined);
 
   if (cargandoEmpresas) {
@@ -25,11 +25,11 @@ export function ConceptosMapeadosPage() {
     return <Text c="red">Empresa no encontrada.</Text>;
   }
 
-  const mapeoEnEdicion = mapeos?.find((m) => m.concepto === conceptoAEditar);
-  const mapeoExistente: { tipo: DefinirMapeoFormValues['tipo']; categoriaContribucion: DefinirMapeoFormValues['categoriaContribucion'] | null } | undefined = mapeoEnEdicion
+  const conceptoEnEdicion = conceptos?.find((c) => c.concepto === conceptoAEditar);
+  const conceptoExistente: { tipo: DefinirConceptoCatalogoFormValues['tipo']; categoriaContribucion: DefinirConceptoCatalogoFormValues['categoriaContribucion'] | null } | undefined = conceptoEnEdicion
     ? {
-        tipo: mapeoEnEdicion.tipo as DefinirMapeoFormValues['tipo'],
-        categoriaContribucion: mapeoEnEdicion.categoriaContribucion as DefinirMapeoFormValues['categoriaContribucion'] | null,
+        tipo: conceptoEnEdicion.tipo as DefinirConceptoCatalogoFormValues['tipo'],
+        categoriaContribucion: conceptoEnEdicion.categoriaContribucion as DefinirConceptoCatalogoFormValues['categoriaContribucion'] | null,
       }
     : undefined;
 
@@ -48,11 +48,11 @@ export function ConceptosMapeadosPage() {
 
       {isLoading && <Text c="dimmed">Cargando…</Text>}
 
-      {!isLoading && !isError && mapeos && mapeos.length === 0 && (
+      {!isLoading && !isError && conceptos && conceptos.length === 0 && (
         <Text c="dimmed">Todavía no se clasificó ningún concepto. Se van agregando desde la pantalla de importación.</Text>
       )}
 
-      {mapeos && mapeos.length > 0 && (
+      {conceptos && conceptos.length > 0 && (
         <Table highlightOnHover>
           <Table.Thead>
             <Table.Tr>
@@ -63,19 +63,19 @@ export function ConceptosMapeadosPage() {
             </Table.Tr>
           </Table.Thead>
           <Table.Tbody>
-            {mapeos.map((mapeo) => (
-              <Table.Tr key={mapeo.id}>
-                <Table.Td>{mapeo.concepto}</Table.Td>
-                <Table.Td>{ETIQUETAS_TIPO_CONCEPTO[mapeo.tipo as keyof typeof ETIQUETAS_TIPO_CONCEPTO]}</Table.Td>
+            {conceptos.map((concepto) => (
+              <Table.Tr key={concepto.id}>
+                <Table.Td>{concepto.concepto}</Table.Td>
+                <Table.Td>{ETIQUETAS_TIPO_CONCEPTO[concepto.tipo as keyof typeof ETIQUETAS_TIPO_CONCEPTO]}</Table.Td>
                 <Table.Td>
-                  {mapeo.categoriaContribucion
+                  {concepto.categoriaContribucion
                     ? ETIQUETAS_CATEGORIA_CONTRIBUCION[
-                        mapeo.categoriaContribucion as keyof typeof ETIQUETAS_CATEGORIA_CONTRIBUCION
+                        concepto.categoriaContribucion as keyof typeof ETIQUETAS_CATEGORIA_CONTRIBUCION
                       ]
                     : '—'}
                 </Table.Td>
                 <Table.Td>
-                  <Button size="xs" variant="subtle" onClick={() => setConceptoAEditar(mapeo.concepto)}>
+                  <Button size="xs" variant="subtle" onClick={() => setConceptoAEditar(concepto.concepto)}>
                     Editar
                   </Button>
                 </Table.Td>
@@ -85,11 +85,11 @@ export function ConceptosMapeadosPage() {
         </Table>
       )}
 
-      <MapearConceptoModal
+      <ClasificarConceptoModal
         empresaId={empresaId}
         concepto={conceptoAEditar}
         onClose={() => setConceptoAEditar(undefined)}
-        mapeoExistente={mapeoExistente}
+        conceptoExistente={conceptoExistente}
       />
     </Stack>
   );

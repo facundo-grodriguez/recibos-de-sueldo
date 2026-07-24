@@ -37,7 +37,7 @@ export class ImportacionFila {
   public readonly monto: number | null;
   public readonly valida: boolean;
   public readonly errorMensaje: string | null;
-  // null hasta que el motor de mapeo (Fase 2) clasifica el concepto de la fila.
+  // null hasta que el catálogo de conceptos (Fase 2) clasifica el concepto de la fila.
   public readonly clasificacion: ClasificacionConcepto | null;
   public readonly unidad: string | null;
   public readonly base: number | null;

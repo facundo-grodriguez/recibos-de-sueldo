@@ -44,7 +44,7 @@ export class CorregirFilaImportacionUseCase {
     }
 
     // Igual que confirmar: una vez que la importación avanzó, corregir una
-    // fila suelta ya no tiene el mismo significado (los empleados/mapeo ya
+    // fila suelta ya no tiene el mismo significado (los empleados/catálogo ya
     // se resolvieron con los datos de ese momento).
     if (importacion.estado !== 'previsualizada') {
       throw new DomainError(

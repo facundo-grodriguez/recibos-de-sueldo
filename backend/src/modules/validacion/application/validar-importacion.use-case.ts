@@ -36,7 +36,7 @@ export class ValidarImportacionUseCase {
 
     const erroresGlobales: string[] = [];
     if (importacion.conceptosNormalizadosSinClasificar().length > 0) {
-      erroresGlobales.push('Hay conceptos sin clasificar. Definí su mapeo antes de continuar.');
+      erroresGlobales.push('Hay conceptos sin clasificar. Clasificalos en el catálogo de conceptos antes de continuar.');
     }
 
     // Domicilio del empleador es parte de la información mínima para

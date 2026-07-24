@@ -7,7 +7,7 @@
 // Uso: node scripts/restore.mjs <directorio-backup>
 //
 // Orden de carga: respeta las FK del schema (usuario → empresa →
-// empleado/importacion → importacionFila/perfilMapeoConcepto/recibo →
+// empleado/importacion → importacionFila/conceptoCatalogo/recibo →
 // auditLog) — insertar en otro orden falla con una violación de clave
 // foránea, que es preferible a insertar "como se pueda" y terminar con
 // datos huérfanos.
@@ -29,7 +29,7 @@ const TABLAS_EN_ORDEN = [
   'empleado',
   'importacion',
   'importacionFila',
-  'perfilMapeoConcepto',
+  'conceptoCatalogo',
   'recibo',
   'auditLog',
 ];

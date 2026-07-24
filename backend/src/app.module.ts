@@ -6,7 +6,7 @@ import { EmisionModule } from './modules/emision/emision.module';
 import { EmpleadoModule } from './modules/empleados/empleado.module';
 import { EmpresaModule } from './modules/empresas/empresa.module';
 import { ImportacionModule } from './modules/importacion/importacion.module';
-import { MapeoModule } from './modules/mapeo/mapeo.module';
+import { CatalogoConceptosModule } from './modules/catalogo-conceptos/catalogo-conceptos.module';
 import { ValidacionModule } from './modules/validacion/validacion.module';
 import { ConfigModule } from './infra/config/config.module';
 import { PrismaModule } from './infra/db/prisma.module';
@@ -30,7 +30,7 @@ import { HealthModule } from './infra/health/health.module';
     EmpresaModule,
     EmpleadoModule,
     ImportacionModule,
-    MapeoModule,
+    CatalogoConceptosModule,
     ValidacionModule,
     EmisionModule,
   ],

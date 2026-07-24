@@ -15,11 +15,11 @@ import {
 } from '../../src/modules/empleados/domain/empleado.repository';
 import { Empresa } from '../../src/modules/empresas/domain/empresa.entity';
 import { EmpresaRepository } from '../../src/modules/empresas/domain/empresa.repository';
-import { PerfilMapeoConcepto } from '../../src/modules/mapeo/domain/perfil-mapeo-concepto.entity';
+import { ConceptoCatalogo } from '../../src/modules/catalogo-conceptos/domain/concepto-catalogo.entity';
 import {
-  DefinirMapeoData,
-  PerfilMapeoRepository,
-} from '../../src/modules/mapeo/domain/perfil-mapeo.repository';
+  DefinirConceptoCatalogoData,
+  ConceptoCatalogoRepository,
+} from '../../src/modules/catalogo-conceptos/domain/concepto-catalogo.repository';
 import { ClasificacionConcepto } from '../../src/shared/value-objects/clasificacion-concepto';
 import { normalizarConcepto } from '../../src/shared/utils/normalizar-concepto';
 
@@ -102,13 +102,13 @@ class EmpleadoRepositoryFake implements EmpleadoRepository {
   }
 }
 
-class PerfilMapeoRepositoryFake implements PerfilMapeoRepository {
-  entradas: PerfilMapeoConcepto[] = [];
+class ConceptoCatalogoRepositoryFake implements ConceptoCatalogoRepository {
+  entradas: ConceptoCatalogo[] = [];
 
   seed(concepto: string, tipo: string, categoriaContribucion: string | null): void {
     this.entradas.push(
-      PerfilMapeoConcepto.create({
-        id: `perfil-${this.entradas.length + 1}`,
+      ConceptoCatalogo.create({
+        id: `concepto-${this.entradas.length + 1}`,
         empresaId: EMPRESA_ID,
         conceptoOriginal: concepto,
         clasificacion: ClasificacionConcepto.create(tipo, categoriaContribucion),
@@ -116,26 +116,26 @@ class PerfilMapeoRepositoryFake implements PerfilMapeoRepository {
     );
   }
 
-  async upsert(data: DefinirMapeoData): Promise<PerfilMapeoConcepto> {
-    const perfil = PerfilMapeoConcepto.create({
-      id: `perfil-${this.entradas.length + 1}`,
+  async upsert(data: DefinirConceptoCatalogoData): Promise<ConceptoCatalogo> {
+    const concepto = ConceptoCatalogo.create({
+      id: `concepto-${this.entradas.length + 1}`,
       empresaId: data.empresaId,
       conceptoOriginal: data.conceptoOriginal,
       clasificacion: ClasificacionConcepto.create(data.tipo, data.categoriaContribucion),
     });
-    this.entradas.push(perfil);
-    return perfil;
+    this.entradas.push(concepto);
+    return concepto;
   }
 
-  async findAllByEmpresa(empresaId: string): Promise<PerfilMapeoConcepto[]> {
+  async findAllByEmpresa(empresaId: string): Promise<ConceptoCatalogo[]> {
     return this.entradas.filter((entrada) => entrada.empresaId === empresaId);
   }
 
-  async findByEmpresaAndConceptoNormalizado(): Promise<PerfilMapeoConcepto | null> {
+  async findByEmpresaAndConceptoNormalizado(): Promise<ConceptoCatalogo | null> {
     throw new Error('no usado en este test');
   }
 
-  async findByIdAndEmpresa(): Promise<PerfilMapeoConcepto | null> {
+  async findByIdAndEmpresa(): Promise<ConceptoCatalogo | null> {
     throw new Error('no usado en este test');
   }
 }
@@ -331,19 +331,19 @@ describe('ConfirmarImportacionUseCase', () => {
   let empresaRepository: EmpresaRepositoryFake;
   let empleadoRepository: EmpleadoRepositoryFake;
   let importacionRepository: ImportacionRepositoryFake;
-  let perfilMapeoRepository: PerfilMapeoRepositoryFake;
+  let catalogoConceptosRepository: ConceptoCatalogoRepositoryFake;
   let useCase: ConfirmarImportacionUseCase;
 
   beforeEach(() => {
     empresaRepository = new EmpresaRepositoryFake();
     empleadoRepository = new EmpleadoRepositoryFake();
     importacionRepository = new ImportacionRepositoryFake();
-    perfilMapeoRepository = new PerfilMapeoRepositoryFake();
+    catalogoConceptosRepository = new ConceptoCatalogoRepositoryFake();
     useCase = new ConfirmarImportacionUseCase(
       empresaRepository,
       importacionRepository,
       empleadoRepository,
-      perfilMapeoRepository,
+      catalogoConceptosRepository,
     );
   });
 
@@ -416,7 +416,7 @@ describe('ConfirmarImportacionUseCase', () => {
   });
 
   it('clasifica automáticamente una fila cuyo concepto ya estaba mapeado', async () => {
-    perfilMapeoRepository.seed('Sueldo básico', 'remunerativo', null);
+    catalogoConceptosRepository.seed('Sueldo básico', 'remunerativo', null);
     importacionRepository.seed(importacionBase({ filas: [filaValida({ concepto: 'Sueldo básico' })] }));
 
     const resultado = await useCase.execute({
@@ -442,7 +442,7 @@ describe('ConfirmarImportacionUseCase', () => {
   });
 
   it('la clasificación matchea por concepto normalizado (mayús/minús y espacios)', async () => {
-    perfilMapeoRepository.seed('  Sueldo Básico  ', 'remunerativo', null);
+    catalogoConceptosRepository.seed('  Sueldo Básico  ', 'remunerativo', null);
     expect(normalizarConcepto('  Sueldo Básico  ')).toBe(normalizarConcepto('sueldo básico'));
 
     importacionRepository.seed(importacionBase({ filas: [filaValida({ concepto: 'sueldo básico' })] }));

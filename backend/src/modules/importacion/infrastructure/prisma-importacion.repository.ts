@@ -179,7 +179,7 @@ export class PrismaImportacionRepository implements ImportacionRepository {
     clasificacion: AplicarClasificacionData,
   ): Promise<number> {
     // El filtro por concepto normalizado se hace en memoria (no en SQL) porque
-    // el motor de mapeo opera sobre pocos miles de filas por empresa, no
+    // el catálogo de conceptos opera sobre pocos miles de filas por empresa, no
     // millones — evita depender de funciones SQL específicas del motor.
     const candidatas = await this.prisma.importacionFila.findMany({
       where: { valida: true, tipo: null, importacion: { empresaId } },

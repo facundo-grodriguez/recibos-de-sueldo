@@ -71,7 +71,7 @@ export interface ReciboSnapshotSegmento {
 /**
  * Foto completa y resuelta de un recibo al momento de emitir. Es lo que se
  * persiste y lo que se usa para renderizar el PDF — nunca se vuelve a leer
- * Empresa/Empleado/mapeo en vivo, así un cambio posterior en esos datos
+ * Empresa/Empleado/catálogo en vivo, así un cambio posterior en esos datos
  * nunca altera un recibo ya emitido.
  */
 export interface ReciboSnapshot {

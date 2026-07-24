@@ -31,7 +31,7 @@ export const ETIQUETAS_CATEGORIA_CONTRIBUCION: Record<(typeof CATEGORIAS_CONTRIB
   ganancias: 'Impuesto a las Ganancias',
 };
 
-export const definirMapeoSchema = z
+export const definirConceptoCatalogoSchema = z
   .object({
     concepto: z.string().min(1),
     tipo: z.enum(TIPOS_CONCEPTO),
@@ -47,4 +47,4 @@ export const definirMapeoSchema = z
     },
   );
 
-export type DefinirMapeoFormValues = z.infer<typeof definirMapeoSchema>;
+export type DefinirConceptoCatalogoFormValues = z.infer<typeof definirConceptoCatalogoSchema>;

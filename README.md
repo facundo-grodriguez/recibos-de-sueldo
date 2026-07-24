@@ -106,7 +106,7 @@ npm run prisma:migrate   # genera y aplica una nueva migración a partir de camb
 app/
   backend/
     src/
-      modules/        (auth, empresas, empleados, importacion, mapeo, validacion, emision — cada uno: domain/application/infrastructure/presentation)
+      modules/        (auth, empresas, empleados, importacion, catalogo-conceptos, validacion, emision — cada uno: domain/application/infrastructure/presentation)
       shared/          (value objects: Cuit, Cuil, Money; errores de dominio; pipes; decorators)
       infra/           (config, db, auditoría transversal, logging, health, manejo de errores)
     prisma/schema.prisma
@@ -143,17 +143,17 @@ Flujo (dos pasos, nunca se crea nada hasta confirmar):
 
 `GET /api/empresas/:empresaId/importaciones/:id` releé una previsualización ya guardada.
 
-## Mapeo de conceptos (Fase 2)
+## Catálogo de conceptos (Fase 2)
 
 Cada concepto del archivo (`Sueldo básico`, `ART`, etc.) se clasifica según el Anexo III: `tipo` (`remunerativo | no_remunerativo | deduccion | contribucion_patronal`) y una `categoriaContribucion` (`sindical | seguridad_social | obra_social | inssjp | art | camaras_empresariales | otros`) — obligatoria si `tipo` es `contribucion_patronal`, opcional si es `deduccion` (permite cruzar, en el recibo, cuánto puso el empleador y cuánto se le retuvo al trabajador de la misma categoría; no toda deducción encaja en una, ej. un adelanto de sueldo).
 
-El mapeo se define **una sola vez por empresa** y se reutiliza:
+La clasificación se define **una sola vez por empresa** y se reutiliza:
 
-- `POST /api/empresas/:empresaId/conceptos-mapeados` — body `{ concepto, tipo, categoriaContribucion? }`. Se aplica de inmediato a todas las filas sin clasificar de ese concepto en **toda la empresa** (no solo la importación que tenías abierta).
-- `GET /api/empresas/:empresaId/conceptos-mapeados` — lista lo ya mapeado.
-- `GET /api/empresas/:empresaId/conceptos-sin-mapear` — lista lo pendiente.
+- `POST /api/empresas/:empresaId/conceptos` — body `{ concepto, tipo, categoriaContribucion? }`. Se aplica de inmediato a todas las filas sin clasificar de ese concepto en **toda la empresa** (no solo la importación que tenías abierta).
+- `GET /api/empresas/:empresaId/conceptos` — lista el catálogo ya clasificado.
+- `GET /api/empresas/:empresaId/conceptos/sin-clasificar` — lista lo pendiente.
 
-Al **confirmar** una importación (Fase 1), el sistema clasifica solo los conceptos que la empresa ya mapeó antes; los que nunca vio quedan sin clasificar y visibles como pendientes, sin bloquear la confirmación (eso es responsabilidad de la fase de Validación).
+Al **confirmar** una importación (Fase 1), el sistema clasifica solo los conceptos que ya están en el catálogo de la empresa; los que nunca vio quedan sin clasificar y visibles como pendientes, sin bloquear la confirmación (eso es responsabilidad de la fase de Validación).
 
 ## Validación (Fase 3)
 
@@ -221,7 +221,7 @@ Hecho hasta ahora:
 - **Fase A** — fundaciones: router, tema, `AuthContext` con persistencia real en `localStorage`, rutas protegidas, cliente HTTP con logout automático ante 401.
 - **Fase B** — empresas: alta, edición, listado, selección de empresa activa.
 - **Fase C** — empleados: alta, edición, baja/reactivación (reversible, nunca un delete real), búsqueda y filtro por estado (client-side).
-- **Fase D** — importación: subida de archivo (Excel Oficial de Importación v1 + año/mes), listado de importaciones, detalle por filas (estado, montos, correcciones automáticas) y mapeo de conceptos pendientes desde el propio detalle.
+- **Fase D** — importación: subida de archivo (Excel Oficial de Importación v1 + año/mes), listado de importaciones, detalle por filas (estado, montos, correcciones automáticas) y clasificación de conceptos pendientes desde el propio detalle.
 - **Fase E** — corrección y confirmación: modal de corrección por fila (sin re-subir el archivo), revalidación reflejada al instante en la tabla, botón Confirmar habilitado solo con 0 filas con error.
 - **Pantalla de revisión rediseñada (ADR-073, post-Fase E)**: la tabla plana de filas se reemplazó por una vista agrupada por empleado (orden original del archivo, no alfabético), con encabezado por grupo (conceptos/válidos/correcciones/errores + Bruto/Neto/Costo laboral — dato objetivo, rotulado "parcial" si el empleado tiene errores sin corregir; nunca las advertencias de negocio, que siguen siendo exclusivas del panel de validación posterior a confirmar), expandir/contraer por grupo (auto-expandido si tiene error) y todos a la vez, buscador global (nombre/apellido/CUIL/concepto), filtro por estado sobre el empleado completo (no por fila), barra lateral de navegación y botón flotante de siguiente/anterior error. La validación sigue siendo estrictamente línea por línea — el rediseño es 100% de presentación, sin cambios de backend/dominio.
 - **Fase F** — validación y emisión: datos de emisión (fecha/lugar de pago y de cargas sociales), panel de validación (errores/advertencias por empleado), botón Emitir recibos (habilitado solo con datos completos y sin errores de validación — excluye automáticamente a los empleados dados de baja), tabla de recibos emitidos con descarga individual de PDF.
@@ -244,7 +244,7 @@ Ver `backend/package.json` y `frontend/package.json` para versiones exactas. Sol
 
 ```bash
 cd backend
-npm test          # Vitest: value objects, auth, importación (validador/conector Excel/confirmación/corrección de fila), mapeo de conceptos, validación Anexo III, emisión (snapshot/plantilla/gráfico/caso de uso), repositorio técnico (anulación/reemisión/historial/descarga)
+npm test          # Vitest: value objects, auth, importación (validador/conector Excel/confirmación/corrección de fila), catálogo de conceptos, validación Anexo III, emisión (snapshot/plantilla/gráfico/caso de uso), repositorio técnico (anulación/reemisión/historial/descarga)
 
 cd frontend
 npm run lint       # oxlint
@@ -268,7 +268,7 @@ El servicio `backup` de `docker-compose.yml` (mismo build que `backend`) corre `
 
 ### Restaurar
 
-`backend/scripts/restore.mjs` (`npm run restore -- <directorio-backup>` desde `backend/`) carga un backup en una base ya migrada y vacía, respetando el orden de las referencias (`usuario` → `empresa` → `empleado`/`importacion` → `importacionFila`/`perfilMapeoConcepto`/`recibo` → `auditLog`), y copia `uploads-recibos/` de vuelta a `uploads/recibos/`. Dos pasos siempre separados, a propósito (crear estructura vacía vs. cargar datos no se mezclan en un solo comando):
+`backend/scripts/restore.mjs` (`npm run restore -- <directorio-backup>` desde `backend/`) carga un backup en una base ya migrada y vacía, respetando el orden de las referencias (`usuario` → `empresa` → `empleado`/`importacion` → `importacionFila`/`conceptoCatalogo`/`recibo` → `auditLog`), y copia `uploads-recibos/` de vuelta a `uploads/recibos/`. Dos pasos siempre separados, a propósito (crear estructura vacía vs. cargar datos no se mezclan en un solo comando):
 
 ```bash
 DATABASE_URL="postgresql://..." npx prisma migrate deploy   # 1. estructura, sobre una base vacía
@@ -299,4 +299,4 @@ Si en el futuro se necesita más de una instancia o un proveedor cloud gestionad
 
 ## Estado
 
-Fase 0 (fundaciones técnicas), Fase 1 (ingesta: conector CSV → modelo canónico), Fase 2 (motor de mapeo: conceptos → categorías normativas), Fase 3 (validación: cuadre de totales, bloqueos y advertencias Anexo III), Fase 4 (emisión: recibo inmutable con snapshot + hash, PDF Anexo III con gráfico de torta vía Puppeteer), Fase 5 (repositorio técnico: anulación/reemisión, historial, descarga por lote, deslinde T&C/DPA) y Fase 6 (robustez de conectores: conector Excel, tolerancia de encabezado/orden/filas vacías, corrección de fila sin re-subir) del roadmap — **MVP completo (Fases 0 a 6)**. Ver el roadmap completo fuera de este repositorio.
+Fase 0 (fundaciones técnicas), Fase 1 (ingesta: conector CSV → modelo canónico), Fase 2 (catálogo de conceptos: conceptos → categorías normativas), Fase 3 (validación: cuadre de totales, bloqueos y advertencias Anexo III), Fase 4 (emisión: recibo inmutable con snapshot + hash, PDF Anexo III con gráfico de torta vía Puppeteer), Fase 5 (repositorio técnico: anulación/reemisión, historial, descarga por lote, deslinde T&C/DPA) y Fase 6 (robustez de conectores: conector Excel, tolerancia de encabezado/orden/filas vacías, corrección de fila sin re-subir) del roadmap — **MVP completo (Fases 0 a 6)**. Ver el roadmap completo fuera de este repositorio.

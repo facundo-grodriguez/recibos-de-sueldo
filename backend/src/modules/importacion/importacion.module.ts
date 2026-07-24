@@ -1,7 +1,7 @@
 import { forwardRef, Module } from '@nestjs/common';
 import { EmpleadoModule } from '../empleados/empleado.module';
 import { EmpresaModule } from '../empresas/empresa.module';
-import { MapeoModule } from '../mapeo/mapeo.module';
+import { CatalogoConceptosModule } from '../catalogo-conceptos/catalogo-conceptos.module';
 import { ActualizarDatosEmisionUseCase } from './application/actualizar-datos-emision.use-case';
 import { ConfirmarImportacionUseCase } from './application/confirmar-importacion.use-case';
 import { CorregirFilaImportacionUseCase } from './application/corregir-fila-importacion.use-case';
@@ -16,7 +16,7 @@ import { PrismaImportacionRepository } from './infrastructure/prisma-importacion
 import { ImportacionController } from './presentation/importacion.controller';
 
 @Module({
-  imports: [EmpresaModule, EmpleadoModule, forwardRef(() => MapeoModule)],
+  imports: [EmpresaModule, EmpleadoModule, forwardRef(() => CatalogoConceptosModule)],
   controllers: [ImportacionController],
   providers: [
     ImportarArchivoUseCase,

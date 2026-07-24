@@ -3,29 +3,29 @@ import { useForm } from '@mantine/form';
 import { notifications } from '@mantine/notifications';
 import { ApiError } from '../../shared/api/http';
 import { zodValidate } from '../../shared/forms/zodValidate';
-import { useDefinirMapeo } from './queries';
+import { useDefinirConceptoCatalogo } from './queries';
 import {
   CATEGORIAS_CONTRIBUCION,
-  definirMapeoSchema,
+  definirConceptoCatalogoSchema,
   ETIQUETAS_CATEGORIA_CONTRIBUCION,
   ETIQUETAS_TIPO_CONCEPTO,
   TIPOS_CONCEPTO,
-  type DefinirMapeoFormValues,
+  type DefinirConceptoCatalogoFormValues,
 } from './schema';
 
-interface MapeoExistente {
-  tipo: DefinirMapeoFormValues['tipo'];
-  categoriaContribucion: DefinirMapeoFormValues['categoriaContribucion'] | null;
+interface ConceptoExistente {
+  tipo: DefinirConceptoCatalogoFormValues['tipo'];
+  categoriaContribucion: DefinirConceptoCatalogoFormValues['categoriaContribucion'] | null;
 }
 
-interface MapearConceptoModalProps {
+interface ClasificarConceptoModalProps {
   empresaId: string;
   concepto: string | undefined;
   onClose: () => void;
   /** Se llama además de invalidar la lista de pendientes propia — para que quien la use también refresque lo que necesite (ej. la importación en pantalla). */
-  onMapeado?: () => void;
-  /** Si viene, el modal edita un concepto ya mapeado (precarga tipo/categoría) en vez de asumir "Remunerativo" (Etapa 3). */
-  mapeoExistente?: MapeoExistente;
+  onClasificado?: () => void;
+  /** Si viene, el modal edita un concepto ya clasificado (precarga tipo/categoría) en vez de asumir "Remunerativo" (Etapa 3). */
+  conceptoExistente?: ConceptoExistente;
 }
 
 const opcionesTipo = TIPOS_CONCEPTO.map((tipo) => ({ value: tipo, label: ETIQUETAS_TIPO_CONCEPTO[tipo] }));
@@ -34,23 +34,23 @@ const opcionesCategoria = CATEGORIAS_CONTRIBUCION.map((categoria) => ({
   label: ETIQUETAS_CATEGORIA_CONTRIBUCION[categoria],
 }));
 
-export function MapearConceptoModal({
+export function ClasificarConceptoModal({
   empresaId,
   concepto,
   onClose,
-  onMapeado,
-  mapeoExistente,
-}: MapearConceptoModalProps) {
+  onClasificado,
+  conceptoExistente,
+}: ClasificarConceptoModalProps) {
   return (
-    <Modal opened={concepto !== undefined} onClose={onClose} title="Mapear concepto">
+    <Modal opened={concepto !== undefined} onClose={onClose} title="Clasificar concepto">
       {concepto && (
         <Formulario
           key={concepto}
           empresaId={empresaId}
           concepto={concepto}
           onClose={onClose}
-          onMapeado={onMapeado}
-          mapeoExistente={mapeoExistente}
+          onClasificado={onClasificado}
+          conceptoExistente={conceptoExistente}
         />
       )}
     </Modal>
@@ -61,40 +61,40 @@ function Formulario({
   empresaId,
   concepto,
   onClose,
-  onMapeado,
-  mapeoExistente,
+  onClasificado,
+  conceptoExistente,
 }: {
   empresaId: string;
   concepto: string;
   onClose: () => void;
-  onMapeado?: () => void;
-  mapeoExistente?: MapeoExistente;
+  onClasificado?: () => void;
+  conceptoExistente?: ConceptoExistente;
 }) {
-  const definir = useDefinirMapeo(empresaId);
+  const definir = useDefinirConceptoCatalogo(empresaId);
 
-  const form = useForm<DefinirMapeoFormValues>({
+  const form = useForm<DefinirConceptoCatalogoFormValues>({
     initialValues: {
       concepto,
-      tipo: mapeoExistente?.tipo ?? 'remunerativo',
-      categoriaContribucion: mapeoExistente?.categoriaContribucion ?? undefined,
+      tipo: conceptoExistente?.tipo ?? 'remunerativo',
+      categoriaContribucion: conceptoExistente?.categoriaContribucion ?? undefined,
     },
-    validate: zodValidate(definirMapeoSchema),
+    validate: zodValidate(definirConceptoCatalogoSchema),
   });
 
   const requiereCategoria = form.values.tipo === 'contribucion_patronal' || form.values.tipo === 'deduccion';
 
-  async function handleSubmit(values: DefinirMapeoFormValues): Promise<void> {
+  async function handleSubmit(values: DefinirConceptoCatalogoFormValues): Promise<void> {
     try {
       const resultado = await definir.mutateAsync(values);
       notifications.show({
-        message: `Concepto mapeado (${resultado.filasActualizadas} fila(s) actualizadas en toda la empresa)`,
+        message: `Concepto clasificado (${resultado.filasActualizadas} fila(s) actualizadas en toda la empresa)`,
         color: 'green',
       });
-      onMapeado?.();
+      onClasificado?.();
       onClose();
     } catch (err) {
       notifications.show({
-        message: err instanceof ApiError ? err.message : 'No se pudo mapear el concepto',
+        message: err instanceof ApiError ? err.message : 'No se pudo clasificar el concepto',
         color: 'red',
       });
     }
@@ -113,7 +113,7 @@ function Formulario({
           autoFocus
           {...form.getInputProps('tipo')}
           onChange={(valor) => {
-            form.setFieldValue('tipo', valor as DefinirMapeoFormValues['tipo']);
+            form.setFieldValue('tipo', valor as DefinirConceptoCatalogoFormValues['tipo']);
             if (valor !== 'contribucion_patronal' && valor !== 'deduccion') {
               form.setFieldValue('categoriaContribucion', undefined);
             }

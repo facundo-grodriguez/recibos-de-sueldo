@@ -5,14 +5,14 @@ import { ClasificacionConcepto } from '../../../shared/value-objects/clasificaci
 import { normalizarConcepto } from '../../../shared/utils/normalizar-concepto';
 import { EMPRESA_REPOSITORY, EmpresaRepository } from '../../empresas/domain/empresa.repository';
 import { IMPORTACION_REPOSITORY, ImportacionRepository } from '../../importacion/domain/importacion.repository';
-import { PerfilMapeoConcepto } from '../domain/perfil-mapeo-concepto.entity';
-import { PERFIL_MAPEO_REPOSITORY, PerfilMapeoRepository } from '../domain/perfil-mapeo.repository';
+import { ConceptoCatalogo } from '../domain/concepto-catalogo.entity';
+import { CATALOGO_CONCEPTOS_REPOSITORY, ConceptoCatalogoRepository } from '../domain/concepto-catalogo.repository';
 
 function serializarClasificacion(tipo: string, categoriaContribucion: string | null): string {
   return JSON.stringify({ tipo, categoriaContribucion });
 }
 
-export interface DefinirMapeoConceptoInput {
+export interface DefinirConceptoCatalogoInput {
   empresaId: string;
   usuarioId: string;
   concepto: string;
@@ -20,21 +20,21 @@ export interface DefinirMapeoConceptoInput {
   categoriaContribucion: string | null;
 }
 
-export interface DefinirMapeoConceptoResultado {
-  perfil: PerfilMapeoConcepto;
+export interface DefinirConceptoCatalogoResultado {
+  concepto: ConceptoCatalogo;
   filasActualizadas: number;
 }
 
 @Injectable()
-export class DefinirMapeoConceptoUseCase {
+export class DefinirConceptoCatalogoUseCase {
   constructor(
     @Inject(EMPRESA_REPOSITORY) private readonly empresaRepository: EmpresaRepository,
-    @Inject(PERFIL_MAPEO_REPOSITORY) private readonly perfilMapeoRepository: PerfilMapeoRepository,
+    @Inject(CATALOGO_CONCEPTOS_REPOSITORY) private readonly catalogoConceptosRepository: ConceptoCatalogoRepository,
     @Inject(IMPORTACION_REPOSITORY) private readonly importacionRepository: ImportacionRepository,
     @Inject(AUDIT_LOG_REPOSITORY) private readonly auditLogRepository: AuditLogRepository,
   ) {}
 
-  async execute(input: DefinirMapeoConceptoInput): Promise<DefinirMapeoConceptoResultado> {
+  async execute(input: DefinirConceptoCatalogoInput): Promise<DefinirConceptoCatalogoResultado> {
     const empresa = await this.empresaRepository.findByIdAndUsuario(input.empresaId, input.usuarioId);
     if (!empresa) {
       throw new NotFoundError(`Empresa "${input.empresaId}" no encontrada`);
@@ -48,12 +48,12 @@ export class DefinirMapeoConceptoUseCase {
     // upsert — es la única forma de auditar el diff campo a campo; el
     // interceptor transversal (@Auditable) no tiene acceso al valor anterior
     // (ver ADR-058/064).
-    const anterior = await this.perfilMapeoRepository.findByEmpresaAndConceptoNormalizado(
+    const anterior = await this.catalogoConceptosRepository.findByEmpresaAndConceptoNormalizado(
       empresa.id,
       conceptoNormalizado,
     );
 
-    const perfil = await this.perfilMapeoRepository.upsert({
+    const concepto = await this.catalogoConceptosRepository.upsert({
       empresaId: empresa.id,
       conceptoOriginal: input.concepto,
       tipo: clasificacion.tipo,
@@ -66,8 +66,12 @@ export class DefinirMapeoConceptoUseCase {
       anterior.clasificacion.categoriaContribucion !== clasificacion.categoriaContribucion;
     if (cambioReal) {
       await this.auditLogRepository.create({
+        // Se mantiene el valor histórico "PerfilMapeoConcepto" (nombre previo de esta
+        // entidad, ver ADR-058/rename): es un valor persistido en filas de auditoría ya
+        // existentes, y ListarAuditoriaCatalogoConceptosUseCase filtra por este mismo
+        // string — cambiarlo dejaría inaccesible el historial anterior al rename.
         entidad: 'PerfilMapeoConcepto',
-        entidadId: perfil.id,
+        entidadId: concepto.id,
         accion: anterior ? 'modificar' : 'crear',
         usuarioId: input.usuarioId,
         campo: 'clasificacion',
@@ -80,13 +84,13 @@ export class DefinirMapeoConceptoUseCase {
 
     // Reutilización retroactiva: aplica de inmediato a todas las filas sin
     // clasificar de ese concepto en toda la empresa, no solo la importación
-    // que el usuario tenía abierta cuando definió el mapeo.
+    // que el usuario tenía abierta cuando lo clasificó.
     const filasActualizadas = await this.importacionRepository.aplicarClasificacion(
       empresa.id,
       conceptoNormalizado,
       { tipo: clasificacion.tipo, categoriaContribucion: clasificacion.categoriaContribucion },
     );
 
-    return { perfil, filasActualizadas };
+    return { concepto, filasActualizadas };
   }
 }
