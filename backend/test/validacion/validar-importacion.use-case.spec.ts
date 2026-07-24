@@ -55,6 +55,8 @@ function empleadoCompleto(cuil: string, overrides: Partial<Parameters<typeof Emp
     estado: 'activo',
     categoria: 'Administrativo A',
     fechaIngreso: new Date('2020-01-01'),
+    legajo: '0001',
+    banco: 'Banco Nación',
     ...overrides,
   });
 }
@@ -392,6 +394,33 @@ describe('ValidarImportacionUseCase', () => {
     expect(resultado.puedeEmitirse).toBe(false);
     expect(resultado.empleados[0].errores).toContain('Falta la categoría laboral en la ficha del empleado');
     expect(resultado.empleados[0].errores).toContain('Falta la fecha de ingreso en la ficha del empleado');
+  });
+
+  it('bloquea un empleado activo sin legajo o banco cargados (alta nueva vía importación mensual, sin columnas de ficha)', async () => {
+    empleadoRepository.empleados.push(empleadoCompleto(CUIL_A, { legajo: null, banco: null }));
+    importacionRepository.importaciones.push(
+      Importacion.create({
+        id: 'importacion-actual',
+        empresaId: EMPRESA_ID,
+        usuarioId: USUARIO_ID,
+        anio: 2026,
+        mes: 7,
+        nombreArchivo: 'julio.csv',
+        estado: 'confirmada',
+        fechaImportacion: new Date('2026-07-17T00:00:00.000Z'),
+        filas: [fila({ id: 'f1', cuil: CUIL_A, monto: 1000, tipo: 'remunerativo' })],
+      }),
+    );
+
+    const resultado = await useCase.execute({
+      importacionId: 'importacion-actual',
+      empresaId: EMPRESA_ID,
+      usuarioId: USUARIO_ID,
+    });
+
+    expect(resultado.puedeEmitirse).toBe(false);
+    expect(resultado.empleados[0].errores).toContain('Falta el legajo en la ficha del empleado');
+    expect(resultado.empleados[0].errores).toContain('Falta el banco en la ficha del empleado');
   });
 
   it('no bloquea por ficha incompleta si el empleado está inactivo (no se le emite recibo)', async () => {

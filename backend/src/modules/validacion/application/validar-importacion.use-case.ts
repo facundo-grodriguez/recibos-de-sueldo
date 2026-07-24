@@ -102,6 +102,8 @@ export class ValidarImportacionUseCase {
     return {
       categoria: empleado?.categoria ?? null,
       fechaIngreso: empleado?.fechaIngreso ?? null,
+      legajo: empleado?.legajo ?? null,
+      banco: empleado?.banco ?? null,
     };
   }
 

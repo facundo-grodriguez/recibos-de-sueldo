@@ -312,6 +312,8 @@ describe('EmitirRecibosUseCase', () => {
         estado: 'activo',
         categoria: 'Administrativo',
         fechaIngreso: new Date('2024-01-10'),
+        legajo: '0001',
+        banco: 'Banco Nación',
       }),
     );
   });
@@ -385,6 +387,8 @@ describe('EmitirRecibosUseCase', () => {
         estado: 'activo',
         categoria: 'Administrativo',
         fechaIngreso: new Date('2024-01-10'),
+        legajo: '0002',
+        banco: 'Banco Nación',
       }),
     );
     importacionRepository.seed(
@@ -483,6 +487,8 @@ describe('EmitirRecibosUseCase', () => {
         estado: 'activo',
         categoria: 'Administrativo',
         fechaIngreso: new Date('2024-01-10'),
+        legajo: '0002',
+        banco: 'Banco Nación',
       }),
     );
     importacionRepository.seed(

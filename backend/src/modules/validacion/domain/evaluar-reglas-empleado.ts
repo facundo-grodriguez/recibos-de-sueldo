@@ -9,14 +9,16 @@ export interface ReglasEmpleadoResultado {
 }
 
 /**
- * Ficha del trabajador a validar (categoría laboral y fecha de ingreso), o
- * `null` cuando no corresponde exigirla — hoy el único caso es un empleado
- * inactivo: no se le emite recibo (ver `EmitirRecibosUseCase`), así que no
- * corresponde bloquear la importación por su ficha incompleta.
+ * Ficha del trabajador a validar (categoría laboral, fecha de ingreso, legajo
+ * y banco), o `null` cuando no corresponde exigirla — hoy el único caso es un
+ * empleado inactivo: no se le emite recibo (ver `EmitirRecibosUseCase`), así
+ * que no corresponde bloquear la importación por su ficha incompleta.
  */
 export interface FichaEmpleadoValidacion {
   categoria: string | null;
   fechaIngreso: Date | null;
+  legajo: string | null;
+  banco: string | null;
 }
 
 /**
@@ -40,15 +42,26 @@ export function evaluarReglasEmpleado(
     errores.push(`El neto calculado es negativo (${totales.neto})`);
   }
 
-  // Categoría laboral y fecha de ingreso son parte de la información mínima
-  // para reconstruir el Anexo III (docs/modelo-funcional-anexo-iii.md,
-  // sección 10) — a diferencia de legajo/banco, que siguen siendo opcionales.
+  // Categoría laboral, fecha de ingreso, legajo y banco son parte de la
+  // información mínima para reconstruir el Anexo III
+  // (docs/modelo-funcional-anexo-iii.md, sección 10). Un alta nueva cargada
+  // con la plantilla "Mensual" (sin columnas de ficha, ver
+  // contrato-excel-oficial-importacion.md) queda con estos 4 campos vacíos
+  // hasta completarla a mano en "Editar empleado" — bloquear acá evita emitir
+  // un recibo con la ficha incompleta en silencio (decisión de producto,
+  // 2026-07-23).
   if (ficha) {
     if (!ficha.categoria) {
       errores.push('Falta la categoría laboral en la ficha del empleado');
     }
     if (!ficha.fechaIngreso) {
       errores.push('Falta la fecha de ingreso en la ficha del empleado');
+    }
+    if (!ficha.legajo) {
+      errores.push('Falta el legajo en la ficha del empleado');
+    }
+    if (!ficha.banco) {
+      errores.push('Falta el banco en la ficha del empleado');
     }
   }
 

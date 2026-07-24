@@ -18,6 +18,8 @@ function ficha(overrides: Partial<FichaEmpleadoValidacion> = {}): FichaEmpleadoV
   return {
     categoria: 'Administrativo A',
     fechaIngreso: new Date('2020-01-01'),
+    legajo: '0001',
+    banco: 'Banco Nación',
     ...overrides,
   };
 }
@@ -72,6 +74,18 @@ describe('evaluarReglasEmpleado', () => {
     const resultado = evaluarReglasEmpleado(totales(), null, ficha({ fechaIngreso: null }));
 
     expect(resultado.errores).toContain('Falta la fecha de ingreso en la ficha del empleado');
+  });
+
+  it('bloquea si falta el legajo (alta nueva vía importación mensual, sin columnas de ficha)', () => {
+    const resultado = evaluarReglasEmpleado(totales(), null, ficha({ legajo: null }));
+
+    expect(resultado.errores).toContain('Falta el legajo en la ficha del empleado');
+  });
+
+  it('bloquea si falta el banco', () => {
+    const resultado = evaluarReglasEmpleado(totales(), null, ficha({ banco: null }));
+
+    expect(resultado.errores).toContain('Falta el banco en la ficha del empleado');
   });
 
   it('no valida la ficha cuando es null (empleado inactivo, no corresponde bloquear)', () => {
