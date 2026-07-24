@@ -2,6 +2,51 @@
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/). Este proyecto aún no tiene versiones publicadas (pre-release).
 
+## [Unreleased] — Plantilla de "primera importación": alta de ficha del empleado desde el Excel
+
+Ver ADR-084 en `DECISIONS.md`.
+
+### Agregado
+- Segunda plantilla de descarga en el modal de importar: **"Primera importación"** (además de la **Mensual**, que sigue siendo la recomendada y sin cambios de columnas). La nueva trae 4 columnas opcionales — `legajo`, `categoria`, `fecha ingreso` (acepta también `fecha de ingreso`/`fechaingreso` como alias), `banco` — pensadas para completar la ficha de todos los empleados en el alta inicial de una empresa, sin tener que editarlos uno por uno después.
+- Esas 4 columnas solo tienen efecto en la fila ancla de cada empleado (misma fila que trae CUIL/nombre/apellido completos, ADR-072 Opción B) y solo se aplican al dar de alta un empleado **nuevo** al confirmar — un empleado ya existente nunca se toca, aunque el archivo traiga datos distintos a los ya cargados.
+- Parser de fecha tolerante (`parsear-fecha-tolerante.ts`): acepta `dd/mm/yyyy`, `dd-mm-yyyy` e ISO; nunca lanza — una fecha no interpretable simplemente queda sin cargar, no bloquea la fila.
+- Migración de Prisma (4 columnas nullable en `importacion_filas`).
+- Ambas plantillas `.xlsx` regeneradas con un ejemplo más completo y realista (2 empleados, conceptos reales del Anexo III, remunerativos + deducciones + contribuciones patronales, `unidad`/`base` en uso).
+- `docs/contrato-excel-oficial-importacion.md` documenta las 4 columnas nuevas.
+
+### Verificado
+`tsc`/lint backend y frontend en verde. Suite completa backend en verde. Verificación real end-to-end (navegador contra Postgres real): descarga de las 2 plantillas desde el modal, import de la plantilla "Primera importación" con 2 empleados y 0 errores, mapeo de los 7 conceptos, confirmación → ambos empleados quedan con la ficha completa (categoría, antigüedad calculada desde la fecha de ingreso, legajo, banco) visible en "Empleados" **sin** pasar por "Editar".
+
+## [Unreleased] — Reemitir un recibo permite corregir datos puntuales, sin tocar la importación original
+
+Ver ADR-083 en `DECISIONS.md`.
+
+### Agregado
+- Nuevo endpoint de previsualización de reemisión: devuelve las filas del empleado tal como se usarían para reemitir, antes de generar nada.
+- `ReemitirReciboUseCase` acepta ajustes puntuales por fila, revalidados con la misma regla de "Corregir fila" (extraída a `construir-fila-canonica-corregida.ts`, compartida entre ambos casos de uso en vez de duplicada). Los ajustes se aplican solo en memoria, únicamente para ese recibo nuevo — la fila original de la importación nunca se modifica (ADR-071). Si un ajuste deja la fila inválida, se rechaza toda la reemisión.
+- Se audita qué fila se ajustó y con qué valores, ya que el snapshot de origen no lo refleja.
+- Frontend: pantalla de previsualización editable antes de confirmar la reemisión, reutilizando el formulario de "Corregir fila".
+
+### Corregido
+- La tabla de recibos nunca pedía al backend los recibos anulados (`incluirAnulados`), así que un recibo desaparecía de la lista apenas se anulaba, sin forma de reemitirlo desde la UI — sin este fix, la funcionalidad de reemisión con corrección quedaba inalcanzable.
+
+### Verificado
+Suite completa en verde, con tests nuevos en `anular-reemitir-recibo.use-case.spec.ts`.
+
+## [Unreleased] — Legajo único por empresa + fecha de ingreso no puede ser futura
+
+Ver ADR-082 en `DECISIONS.md`.
+
+### Agregado
+- `fechaIngreso` posterior a hoy se rechaza, tanto en backend (`ActualizarEmpleadoUseCase`) como en frontend (mismo mensaje).
+- `legajo` pasa a ser único por empresa: constraint de base de datos (`@@unique([empresaId, legajo])` — Postgres no choca dos `NULL` entre sí, así que los empleados sin legajo cargado todavía conviven sin problema) + validación previa en el caso de uso, con un mensaje legible indicando a qué empleado ya pertenece, antes de llegar al error crudo del constraint.
+
+### Corregido
+- Se detectó y corrigió un legajo duplicado real en datos de prueba, antes de aplicar la migración (de lo contrario la migración habría fallado contra datos reales).
+
+### Verificado
+Tests unitarios nuevos: fecha futura rechazada, legajo duplicado rechazado con mensaje legible, reasignar a un empleado su propio legajo no genera un falso conflicto.
+
 ## [Unreleased] — Sprint al primer cliente piloto (Tareas 2 a 7 del plan)
 
 Cierra las 7 tareas bloqueantes identificadas en la auditoría previa al primer cliente (`esto-va-a-ser-adaptive-seahorse.md`, fuera de este repo) — absorbe y cierra las Etapas 4, 5 y 6 del plan de MVP Comercial. D0 (3 preguntas al prospecto) y Tarea 1 (acuerdo legal, con un tercero) quedan fuera de este changelog por no ser cambios de código.
