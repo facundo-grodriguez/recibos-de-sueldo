@@ -151,19 +151,7 @@ export class PrismaImportacionRepository implements ImportacionRepository {
   async actualizarFila(filaId: string, data: ActualizarFilaData): Promise<Importacion> {
     const filaActualizada = await this.prisma.importacionFila.update({
       where: { id: filaId },
-      data: {
-        cuil: data.cuil,
-        nombre: data.nombre,
-        apellido: data.apellido,
-        concepto: data.concepto,
-        montoOriginal: data.montoOriginal,
-        monto: data.monto,
-        valida: data.valida,
-        errorMensaje: data.errorMensaje,
-        unidad: data.unidad,
-        base: data.base,
-        correcciones: data.correcciones ?? [],
-      },
+      data: this.datosActualizacionFila(data),
     });
 
     const registro = await this.prisma.importacion.findUniqueOrThrow({
@@ -171,6 +159,46 @@ export class PrismaImportacionRepository implements ImportacionRepository {
       include: { filas: true },
     });
     return aDominio(registro);
+  }
+
+  async actualizarVariasFilas(cambios: { filaId: string; data: ActualizarFilaData }[]): Promise<Importacion> {
+    if (cambios.length === 0) {
+      throw new Error('actualizarVariasFilas requiere al menos una fila');
+    }
+
+    // Una sola transacción: todas las filas del grupo quedan con el dato nuevo
+    // o ninguna, nunca a medias (ver ImportacionRepository.actualizarVariasFilas).
+    const actualizadas = await this.prisma.$transaction(
+      cambios.map(({ filaId, data }) =>
+        this.prisma.importacionFila.update({
+          where: { id: filaId },
+          data: this.datosActualizacionFila(data),
+        }),
+      ),
+    );
+
+    const registro = await this.prisma.importacion.findUniqueOrThrow({
+      where: { id: actualizadas[0].importacionId },
+      include: { filas: true },
+    });
+    return aDominio(registro);
+  }
+
+  /** Payload de actualización de una fila, compartido por `actualizarFila` y `actualizarVariasFilas`. */
+  private datosActualizacionFila(data: ActualizarFilaData) {
+    return {
+      cuil: data.cuil,
+      nombre: data.nombre,
+      apellido: data.apellido,
+      concepto: data.concepto,
+      montoOriginal: data.montoOriginal,
+      monto: data.monto,
+      valida: data.valida,
+      errorMensaje: data.errorMensaje,
+      unidad: data.unidad,
+      base: data.base,
+      correcciones: data.correcciones ?? [],
+    };
   }
 
   async aplicarClasificacion(

@@ -65,6 +65,14 @@ export interface ImportacionRepository {
   marcarDescartada(id: string): Promise<Importacion>;
   /** Corrige una fila puntual y devuelve la importación completa recién releída (mismo patrón que marcarConfirmada/actualizarDatosEmision). */
   actualizarFila(filaId: string, data: ActualizarFilaData): Promise<Importacion>;
+  /**
+   * Corrige varias filas de una misma importación en una única transacción y
+   * devuelve la importación completa recién releída. Usado al corregir la
+   * identidad de un empleado (CUIL/nombre/apellido), que se propaga a todas
+   * sus líneas (`CorregirFilaImportacionUseCase`) — que todas queden con el
+   * dato nuevo o ninguna, nunca a medias.
+   */
+  actualizarVariasFilas(cambios: { filaId: string; data: ActualizarFilaData }[]): Promise<Importacion>;
   actualizarDatosEmision(id: string, data: ActualizarDatosEmisionData): Promise<Importacion>;
   /**
    * Clasifica todas las filas válidas y todavía sin clasificar de ese concepto

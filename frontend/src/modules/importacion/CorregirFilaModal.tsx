@@ -5,9 +5,38 @@ import { useState } from 'react';
 import { ApiError } from '../../shared/api/http';
 import { omitirVacios } from '../../shared/forms/omitirVacios';
 import { zodValidate } from '../../shared/forms/zodValidate';
-import type { ImportacionFila } from './api';
+import type { Importacion, ImportacionFila } from './api';
 import { useCorregirFilaImportacion } from './queries';
+import { agruparFilasPorEmpleado, tituloGrupo } from './revision/agruparFilasPorEmpleado';
 import { corregirFilaSchema, type CorregirFilaFormValues } from './schema';
+
+/** Campos de identidad del empleado — corregir uno se propaga a todas sus líneas (ver CorregirFilaImportacionUseCase). */
+const CAMPOS_IDENTIDAD = ['cuil', 'nombre', 'apellido'] as const;
+
+/**
+ * Mensaje de éxito según lo que se corrigió. Si se tocó la identidad
+ * (CUIL/nombre/apellido), el backend la propaga a todas las líneas de esa
+ * persona — el aviso lo refleja contando cuántas quedaron con el CUIL nuevo.
+ * Se cuenta sobre el CUIL YA normalizado por el backend (la fila editada tal
+ * como volvió en la respuesta), no sobre lo tipeado, que puede traer guiones.
+ */
+function mensajeExito(fila: ImportacionFila, cambios: Record<string, unknown>, importacion: Importacion): string {
+  const tocoIdentidad = CAMPOS_IDENTIDAD.some((campo) => campo in cambios);
+  const filaActualizada = importacion.filas.find((f) => f.id === fila.id);
+  if (!tocoIdentidad || !filaActualizada) {
+    return `Fila ${fila.numeroFila} corregida`;
+  }
+
+  const grupo = agruparFilasPorEmpleado(importacion.filas).find(
+    (g) => g.cuil.trim() === filaActualizada.cuil.trim(),
+  );
+  const cantidad = grupo?.filas.length ?? 1;
+  const nombre = grupo ? tituloGrupo(grupo) : `${fila.apellido}, ${fila.nombre}`;
+
+  return cantidad > 1
+    ? `Se corrigió la identidad en las ${cantidad} líneas de ${nombre}`
+    : `Fila ${fila.numeroFila} corregida`;
+}
 
 interface CorregirFilaModalProps {
   empresaId: string;
@@ -71,7 +100,8 @@ function Formulario({
   async function handleSubmit(values: CorregirFilaFormValues): Promise<void> {
     setErrorPersistente(undefined);
     try {
-      const importacionActualizada = await corregir.mutateAsync({ filaId: fila.id, cambios: omitirVacios(values) });
+      const cambios = omitirVacios(values);
+      const importacionActualizada = await corregir.mutateAsync({ filaId: fila.id, cambios });
       const filaActualizada = importacionActualizada.filas.find((f) => f.id === fila.id);
 
       // El guardado en sí puede tener éxito (200) aunque el dato siga siendo
@@ -83,7 +113,7 @@ function Formulario({
         return;
       }
 
-      notifications.show({ message: `Fila ${fila.numeroFila} corregida`, color: 'green' });
+      notifications.show({ message: mensajeExito(fila, cambios, importacionActualizada), color: 'green' });
       onClose();
       onCorregida?.();
     } catch (err) {
