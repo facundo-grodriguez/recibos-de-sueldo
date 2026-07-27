@@ -23,31 +23,36 @@ interface RecibosTableProps {
 const ORDEN_ESTADO: Record<string, number> = { vigente: 0, anulado: 1 };
 
 interface GrupoRecibosPersona {
+  clave: string;
   cuil: string;
   /** Fila que se ve siempre: el vigente si hay uno, o el más reciente de sus anulados si no. */
   representante: Recibo;
-  /** El resto de los recibos de la misma persona (historial de anulaciones/reemisiones), más
-   * viejo a más nuevo — solo visible al desplegar. Vacío si la persona tiene un único recibo. */
+  /** El resto de los recibos de la misma persona en el mismo período (historial de
+   * anulaciones/reemisiones), más viejo a más nuevo — solo visible al desplegar. Vacío si la
+   * persona tiene un único recibo en ese período. */
   resto: Recibo[];
 }
 
-/** Agrupa por CUIL: una persona con varios recibos (típicamente una cadena anular→reemitir
- * repetida para el mismo período) pasa a ser un solo grupo con una flechita de despliegue, en
- * vez de una fila por recibo repitiendo el nombre. */
+/** Agrupa por CUIL + importación: una persona con varios recibos en el mismo período
+ * (típicamente una cadena anular→reemitir repetida) pasa a ser un solo grupo con una flechita de
+ * despliegue, en vez de una fila por recibo repitiendo el nombre. Agrupar solo por CUIL mezclaría
+ * el vigente de un período con el de otro (una persona tiene un vigente por período, no uno solo
+ * en total) y el vigente "perdedor" quedaría escondido en el historial etiquetado como anulado. */
 function agruparPorPersona(recibos: Recibo[]): GrupoRecibosPersona[] {
-  const porCuil = new Map<string, Recibo[]>();
+  const porClave = new Map<string, Recibo[]>();
   for (const recibo of recibos) {
-    const lista = porCuil.get(recibo.cuil) ?? [];
+    const clave = `${recibo.cuil}|${recibo.importacionId}`;
+    const lista = porClave.get(clave) ?? [];
     lista.push(recibo);
-    porCuil.set(recibo.cuil, lista);
+    porClave.set(clave, lista);
   }
 
   const grupos: GrupoRecibosPersona[] = [];
-  for (const [cuil, lista] of porCuil) {
+  for (const [clave, lista] of porClave) {
     const ordenados = [...lista].sort((a, b) => b.numero - a.numero);
     const representante = ordenados.find((r) => r.estado === 'vigente') ?? ordenados[0];
     const resto = ordenados.filter((r) => r.id !== representante.id).reverse();
-    grupos.push({ cuil, representante, resto });
+    grupos.push({ clave, cuil: representante.cuil, representante, resto });
   }
 
   grupos.sort((a, b) => {
@@ -73,13 +78,13 @@ export function RecibosTable({ empresaId, recibos, mostrarLinkImportacion = true
   // Un recibo anulado ya reemitido no debe ofrecer "Reemitir" de nuevo (el backend lo rechazaría).
   const yaReemplazados = new Set(recibos.map((r) => r.reemplazaAId).filter((id): id is string => id !== null));
 
-  function toggleExpandido(cuil: string): void {
+  function toggleExpandido(clave: string): void {
     setExpandidos((anterior) => {
       const copia = new Set(anterior);
-      if (copia.has(cuil)) {
-        copia.delete(cuil);
+      if (copia.has(clave)) {
+        copia.delete(clave);
       } else {
-        copia.add(cuil);
+        copia.add(clave);
       }
       return copia;
     });
@@ -151,13 +156,13 @@ export function RecibosTable({ empresaId, recibos, mostrarLinkImportacion = true
         <Table.Tbody>
           {grupos.map((grupo) => {
             const tieneHistorial = grupo.resto.length > 0;
-            const expandido = expandidos.has(grupo.cuil);
+            const expandido = expandidos.has(grupo.clave);
             return (
-              <Fragment key={grupo.cuil}>
+              <Fragment key={grupo.clave}>
                 <Table.Tr>
                   <Table.Td>
                     {tieneHistorial && (
-                      <ActionIcon variant="subtle" size="sm" onClick={() => toggleExpandido(grupo.cuil)}>
+                      <ActionIcon variant="subtle" size="sm" onClick={() => toggleExpandido(grupo.clave)}>
                         {expandido ? <IconChevronDown size={14} /> : <IconChevronRight size={14} />}
                       </ActionIcon>
                     )}
@@ -193,8 +198,8 @@ export function RecibosTable({ empresaId, recibos, mostrarLinkImportacion = true
                       <Table.Td />
                       <Table.Td>{recibo.neto.toLocaleString('es-AR', { style: 'currency', currency: 'ARS' })}</Table.Td>
                       <Table.Td>
-                        <Badge color="red" variant="light">
-                          Anulado
+                        <Badge color={recibo.estado === 'vigente' ? 'green' : 'red'} variant="light">
+                          {recibo.estado === 'vigente' ? 'Vigente' : 'Anulado'}
                         </Badge>
                       </Table.Td>
                       <Table.Td>{filaAcciones(recibo)}</Table.Td>
