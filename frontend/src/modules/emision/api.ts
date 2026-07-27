@@ -35,6 +35,26 @@ export function emitirRecibos(token: string, empresaId: string, importacionId: s
   });
 }
 
+export interface EmpleadoPendienteDeEmision {
+  id: string;
+  nombre: string;
+  apellido: string;
+  cuil: string;
+}
+
+/** Empleados activos de esta importación que todavía no tienen recibo — típicamente porque se
+ * saltearon al emitir (estaban inactivos en ese momento) y después alguien los reactivó. */
+export function listarEmpleadosPendientesDeEmision(
+  token: string,
+  empresaId: string,
+  importacionId: string,
+): Promise<EmpleadoPendienteDeEmision[]> {
+  return request<EmpleadoPendienteDeEmision[]>(
+    `/empresas/${empresaId}/importaciones/${importacionId}/recibos/pendientes`,
+    { token },
+  );
+}
+
 export function descargarRecibo(
   token: string | null,
   empresaId: string,

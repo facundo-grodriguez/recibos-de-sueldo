@@ -77,7 +77,7 @@ describe('reconocerEmpleado', () => {
     );
 
     expect(resultado.correcciones).toContain(
-      'Este CUIL corresponde a un empleado inactivo — no se reactiva solo, revisar antes de emitir',
+      'Lucía Fernández (este CUIL) es un empleado inactivo — no se reactiva solo, revisar antes de emitir',
     );
   });
 });

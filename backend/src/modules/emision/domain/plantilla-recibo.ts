@@ -253,8 +253,11 @@ export function generarHtmlRecibo(snapshot: ReciboSnapshot): string {
   .subtotal td { font-weight: 700; background: #dedcd0; }
   .total-row td { font-weight: 700; background: #3a3f36; color: #fdfdfb; }
 
-  .encabezado-empresa { margin-bottom: 6px; }
+  .encabezado-empresa { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
   .encabezado-empresa .empresa-datos { font-size: 10px; color: #52514e; }
+  /* Altura tope fija (nunca ancho): logos apaisados o cuadrados quedan
+     igual de contenidos sin deformarse ni empujar el resto del encabezado. */
+  .logo-empresa { max-height: 40px; max-width: 120px; object-fit: contain; flex-shrink: 0; }
 
   /* Grilla real (no flexbox+wrap): todo campo comparte las mismas columnas,
      así la ficha se lee como un único bloque prolijo en vez de filas que
@@ -263,6 +266,11 @@ export function generarHtmlRecibo(snapshot: ReciboSnapshot): string {
   .campo { display: flex; flex-direction: column; min-width: 90px; }
   .campo .etiqueta { font-size: 8.5px; text-transform: uppercase; letter-spacing: 0.03em; color: #767568; }
   .campo .valor { font-weight: 600; }
+  /* Campo fuera de la grilla de identificación (ej. "Pago de cargas
+     sociales", que es un dato de la relación empleador-Estado, no de la
+     ficha del empleado) — mismo estilo de etiqueta/valor, con su propio
+     margen en vez de heredar el gap de la grilla .ficha. */
+  .campo-suelto { margin: 2px 0 6px; }
 
   .destacado { display: flex; justify-content: space-between; align-items: baseline; background: #f4f3ee; padding: 3px 8px; margin: 4px 0; }
   .destacado .etiqueta-destacado { font-size: 9.5px; text-transform: uppercase; letter-spacing: 0.03em; color: #52514e; }
@@ -308,8 +316,11 @@ export function generarHtmlRecibo(snapshot: ReciboSnapshot): string {
 </head>
 <body>
   <div class="encabezado-empresa">
-    <h1>${escaparHtml(empresa.razonSocial)}</h1>
-    <p class="empresa-datos">${domicilioEmpresa ? escaparHtml(domicilioEmpresa) : ''}${domicilioEmpresa ? ' — ' : ''}CUIT ${escaparHtml(empresa.cuit)}</p>
+    ${empresa.logoDataUri ? `<img class="logo-empresa" src="${empresa.logoDataUri}" alt="">` : ''}
+    <div>
+      <h1>${escaparHtml(empresa.razonSocial)}</h1>
+      <p class="empresa-datos">${domicilioEmpresa ? escaparHtml(domicilioEmpresa) : ''}${domicilioEmpresa ? ' — ' : ''}CUIT ${escaparHtml(empresa.cuit)}</p>
+    </div>
   </div>
 
   <h2>Identificación</h2>
@@ -324,10 +335,10 @@ export function generarHtmlRecibo(snapshot: ReciboSnapshot): string {
     ${campo('Fecha de ingreso', empleado.fechaIngreso)}
     ${campo('Antigüedad', empleado.antiguedad)}
     ${campo('Lugar y fecha de pago', `${periodo.lugarPago} — ${periodo.fechaPago}`)}
-    ${campo('Pago de cargas sociales', `${periodo.lugarPagoCargasSociales} — ${periodo.fechaPagoCargasSociales}`)}
   </div>
 
   <h2>Contribuciones del empleador</h2>
+  <div class="campo-suelto">${campo('Pago de cargas sociales', `${periodo.lugarPagoCargasSociales} — ${periodo.fechaPagoCargasSociales}`)}</div>
   ${destacado('Costo laboral total', totales.costoLaboralTotal, 'costo-laboral')}
   ${envolverTabla(filasContribuciones, totalContribuciones, mostrarCalculo)}
 

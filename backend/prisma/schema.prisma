@@ -39,6 +39,12 @@ model Empresa {
   localidad      String?
   provincia      String?
   codigoPostal   String?  @map("codigo_postal")
+  // Ruta relativa dentro de uploads/logos/ (incluye extensión, ej.
+  // "<empresaId>.png") — nunca se sirve directo, siempre a través de
+  // AlmacenamientoLogo. Un recibo ya emitido nunca lee este campo en vivo:
+  // el logo se congela como data URI dentro de su propio snapshot al emitir
+  // (mismo principio de inmutabilidad que el resto de los datos de Empresa).
+  logoPath       String?  @map("logo_path")
   createdAt      DateTime @default(now()) @map("created_at")
 
   usuario              Usuario               @relation(fields: [usuarioId], references: [id])

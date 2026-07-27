@@ -113,7 +113,7 @@ describe('construirDetalleComposicionSalarial', () => {
   });
 
   describe('integración con el gráfico de torta', () => {
-    it('el gráfico (pura y exclusivamente gasto del empleador) suma el 100% del costo laboral aun con una deducción sin contraparte patronal (ej. Ganancias)', () => {
+    it('el gráfico (Neto + categorías combinadas) suma el 100% del costo laboral aun con una deducción sin contraparte patronal (ej. Ganancias, redirigida a "Otros")', () => {
       const filas = [
         fila({ id: 'f1', tipo: 'remunerativo', monto: 1_000_000 }),
         fila({ id: 'f2', tipo: 'deduccion', categoriaContribucion: 'ganancias', monto: 150_000 }),
@@ -122,11 +122,14 @@ describe('construirDetalleComposicionSalarial', () => {
 
       const totales = calcularTotalesEmpleado(filas);
       const detalle = construirDetalleComposicionSalarial(filas);
-      const segmentos = construirSegmentosCostoLaboral(detalle, totales.totalBruto, totales.costoLaboralTotal);
+      const segmentos = construirSegmentosCostoLaboral(detalle, totales.neto, totales.costoLaboralTotal);
 
-      // Ganancias no genera gajo (sin aporte patronal): el gasto del empleador
-      // es Sueldo Bruto (1.000.000) + Seguridad Social patronal (200.000).
+      // Ganancias no tiene contraparte patronal: nunca aparece con su propio
+      // nombre, su monto (150.000) se redirige al gajo "Otros". El resto:
+      // Sueldo Neto (850.000) + Seguridad Social (200.000, sin lado trabajador
+      // en este caso).
       expect(segmentos.some((s) => s.etiqueta === 'Impuesto a las Ganancias')).toBe(false);
+      expect(segmentos.find((s) => s.etiqueta === 'Otros')?.monto).toBe(150_000);
       const sumaSegmentos = segmentos.reduce((acumulado, s) => acumulado + s.monto, 0);
       expect(sumaSegmentos).toBe(totales.costoLaboralTotal);
     });

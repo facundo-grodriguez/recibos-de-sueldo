@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '../../shared/auth/AuthContext';
-import { actualizarEmpresa, crearEmpresa, listarEmpresas, type Empresa } from './api';
+import { actualizarEmpresa, crearEmpresa, listarEmpresas, subirLogoEmpresa, type Empresa } from './api';
 import type { EmpresaFormValues } from './schema';
 
 const EMPRESAS_KEY = ['empresas'] as const;
@@ -37,6 +37,18 @@ export function useActualizarEmpresa() {
   return useMutation({
     mutationFn: ({ empresaId, datos }: { empresaId: string; datos: Partial<EmpresaFormValues> }) =>
       actualizarEmpresa(token as string, empresaId, datos),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: EMPRESAS_KEY });
+    },
+  });
+}
+
+export function useSubirLogoEmpresa() {
+  const { token } = useAuth();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ empresaId, archivo }: { empresaId: string; archivo: File }) =>
+      subirLogoEmpresa(token as string, empresaId, archivo),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: EMPRESAS_KEY });
     },

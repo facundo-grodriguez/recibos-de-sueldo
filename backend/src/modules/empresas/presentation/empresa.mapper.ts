@@ -9,6 +9,8 @@ export interface EmpresaResponse {
   localidad: string | null;
   provincia: string | null;
   codigoPostal: string | null;
+  /** Nunca se manda la ruta interna del archivo — solo si hay uno, para que el frontend decida si pide GET /logo. */
+  tieneLogo: boolean;
 }
 
 /**
@@ -25,5 +27,6 @@ export function toEmpresaResponse(empresa: Empresa): EmpresaResponse {
     localidad: empresa.localidad,
     provincia: empresa.provincia,
     codigoPostal: empresa.codigoPostal,
+    tieneLogo: empresa.logoPath !== null,
   };
 }

@@ -14,6 +14,7 @@ export interface ConstruirSnapshotReciboParams {
     localidad: string | null;
     provincia: string | null;
     codigoPostal: string | null;
+    logoDataUri: string | null;
   };
   empleado: {
     nombre: string;
@@ -94,7 +95,7 @@ export function construirSnapshotRecibo(params: ConstruirSnapshotReciboParams): 
     },
     conceptos: conceptosDelSnapshot(params.filas),
     totales,
-    segmentosCostoLaboral: construirSegmentosCostoLaboral(detalleComposicionSalarial, totales.totalBruto, totales.costoLaboralTotal),
+    segmentosCostoLaboral: construirSegmentosCostoLaboral(detalleComposicionSalarial, totales.neto, totales.costoLaboralTotal),
     detalleComposicionSalarial,
   };
 }

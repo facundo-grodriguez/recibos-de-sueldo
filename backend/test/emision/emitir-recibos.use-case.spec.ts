@@ -11,6 +11,7 @@ import { ReciboSnapshot } from '../../src/modules/emision/domain/recibo-snapshot
 import { ValidarImportacionUseCase } from '../../src/modules/validacion/application/validar-importacion.use-case';
 import { Empleado } from '../../src/modules/empleados/domain/empleado.entity';
 import { EmpleadoRepository } from '../../src/modules/empleados/domain/empleado.repository';
+import { AlmacenamientoLogo } from '../../src/modules/empresas/domain/almacenamiento-logo';
 import { Empresa } from '../../src/modules/empresas/domain/empresa.entity';
 import { EmpresaRepository } from '../../src/modules/empresas/domain/empresa.repository';
 import { Importacion } from '../../src/modules/importacion/domain/importacion.entity';
@@ -200,6 +201,16 @@ class ReciboRepositoryFake implements ReciboRepository {
   }
 }
 
+class AlmacenamientoLogoFake implements AlmacenamientoLogo {
+  async guardar(): Promise<string> {
+    throw new Error('no usado en este test');
+  }
+
+  async leer(): Promise<Buffer> {
+    throw new Error('no usado en este test');
+  }
+}
+
 class GeneradorPdfFake implements GeneradorPdf {
   snapshotsRecibidos: ReciboSnapshot[] = [];
 
@@ -280,6 +291,7 @@ describe('EmitirRecibosUseCase', () => {
   let reciboRepository: ReciboRepositoryFake;
   let generadorPdf: GeneradorPdfFake;
   let almacenamiento: AlmacenamientoRecibosFake;
+  let almacenamientoLogo: AlmacenamientoLogoFake;
   let useCase: EmitirRecibosUseCase;
 
   beforeEach(() => {
@@ -289,6 +301,7 @@ describe('EmitirRecibosUseCase', () => {
     reciboRepository = new ReciboRepositoryFake();
     generadorPdf = new GeneradorPdfFake();
     almacenamiento = new AlmacenamientoRecibosFake();
+    almacenamientoLogo = new AlmacenamientoLogoFake();
 
     const validarImportacion = new ValidarImportacionUseCase(empresaRepository, importacionRepository, empleadoRepository);
 
@@ -299,6 +312,7 @@ describe('EmitirRecibosUseCase', () => {
       reciboRepository,
       generadorPdf,
       almacenamiento,
+      almacenamientoLogo,
       validarImportacion,
     );
 

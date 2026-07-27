@@ -91,6 +91,8 @@ export function toImportacionResumenResponse(importacion: Importacion): Importac
 export function toImportacionResponse(
   importacion: Importacion,
   hayOtraImportacionEnMismoPeriodo = false,
+  /** Conceptos (normalizados) ya definidos en el catálogo de la empresa — ver ObtenerImportacionUseCase. */
+  conceptosCatalogados: Set<string> = new Set(),
 ): ImportacionResponse {
   return {
     id: importacion.id,
@@ -109,7 +111,9 @@ export function toImportacionResponse(
     totalFilas: importacion.filas.length,
     filasValidas: importacion.filas.filter((fila) => fila.valida).length,
     filasConError: importacion.filas.filter((fila) => !fila.valida).length,
-    filasSinClasificar: importacion.filas.filter((fila) => fila.valida && !fila.estaClasificada()).length,
+    filasSinClasificar: importacion.filas.filter(
+      (fila) => fila.valida && !fila.estaClasificada() && !conceptosCatalogados.has(fila.conceptoNormalizado()),
+    ).length,
     filasConCorrecciones: importacion.filas.filter((fila) => fila.correcciones.length > 0).length,
     filas: importacion.filas.map(toImportacionFilaResponse),
     hayOtraImportacionEnMismoPeriodo,

@@ -21,6 +21,7 @@ function snapshotBase(overrides: Partial<ReciboSnapshot> = {}): ReciboSnapshot {
       localidad: 'CABA',
       provincia: 'Buenos Aires',
       codigoPostal: '1000',
+      logoDataUri: null,
     },
     empleado: {
       nombre: 'Juan',
@@ -93,6 +94,20 @@ describe('generarHtmlRecibo', () => {
     for (const encabezado of encabezados) {
       expect(encabezado).not.toMatch(/^\d+[.)]\s/);
     }
+  });
+
+  it('no muestra ninguna imagen en el encabezado si la empresa no tiene logo cargado', () => {
+    const html = generarHtmlRecibo(snapshotBase());
+    expect(html).not.toContain('<img');
+  });
+
+  it('muestra el logo de la empresa en el encabezado, junto a la razón social, cuando el snapshot trae uno', () => {
+    const dataUri = 'data:image/png;base64,ZmFrZS1wbmc=';
+    const html = generarHtmlRecibo(snapshotBase({ empresa: { ...snapshotBase().empresa, logoDataUri: dataUri } }));
+
+    expect(html).toContain(`<img class="logo-empresa" src="${dataUri}"`);
+    // El logo aparece antes de la razón social en el HTML (mismo bloque de encabezado, a la izquierda del nombre).
+    expect(html.indexOf('logo-empresa')).toBeLessThan(html.indexOf('Acme SA'));
   });
 
   it('escapa HTML en campos que vienen de datos cargados por el usuario', () => {
@@ -330,6 +345,22 @@ describe('generarHtmlRecibo', () => {
     expect(posicionDetalle).toBeGreaterThan(-1);
     expect(posicionNeto).toBeLessThan(posicionFirma);
     expect(posicionFirma).toBeLessThan(posicionDetalle);
+  });
+
+  it('muestra "Pago de cargas sociales" junto a Contribuciones del empleador, no en la ficha de Identificación', () => {
+    const html = generarHtmlRecibo(snapshotBase());
+
+    // Busca el <h2> real (no la palabra suelta, que también aparece en un comentario del CSS del <head>).
+    const posicionContribuciones = html.indexOf('<h2>Contribuciones del empleador</h2>');
+    const posicionCargasSociales = html.indexOf('Pago de cargas sociales');
+    const posicionCostoLaboralDestacado = html.indexOf('class="destacado costo-laboral"');
+
+    expect(posicionContribuciones).toBeGreaterThan(-1);
+    expect(posicionCargasSociales).toBeGreaterThan(-1);
+    // Va después del título de la sección y antes del destacado "Costo laboral
+    // total" — no adentro de la grilla de Identificación (que quedó atrás en el HTML).
+    expect(posicionContribuciones).toBeLessThan(posicionCargasSociales);
+    expect(posicionCargasSociales).toBeLessThan(posicionCostoLaboralDestacado);
   });
 
   it('no muestra un sub-renglón de Empleador o Trabajador cuando ese lado es cero', () => {

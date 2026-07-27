@@ -11,6 +11,7 @@ export interface EmpresaProps {
   localidad?: string | null;
   provincia?: string | null;
   codigoPostal?: string | null;
+  logoPath?: string | null;
 }
 
 /**
@@ -28,6 +29,7 @@ export class Empresa {
   public readonly localidad: string | null;
   public readonly provincia: string | null;
   public readonly codigoPostal: string | null;
+  public readonly logoPath: string | null;
 
   private constructor(props: EmpresaProps) {
     if (!props.razonSocial.trim()) {
@@ -43,6 +45,7 @@ export class Empresa {
     this.localidad = props.localidad ?? null;
     this.provincia = props.provincia ?? null;
     this.codigoPostal = props.codigoPostal ?? null;
+    this.logoPath = props.logoPath ?? null;
   }
 
   static create(props: EmpresaProps): Empresa {

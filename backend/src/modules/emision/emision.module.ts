@@ -10,6 +10,7 @@ import { DescargarLoteRecibosUseCase } from './application/descargar-lote-recibo
 import { DescargarReciboUseCase } from './application/descargar-recibo.use-case';
 import { EmitirRecibosUseCase } from './application/emitir-recibos.use-case';
 import { ListarAuditoriaReciboUseCase } from './application/listar-auditoria-recibo.use-case';
+import { ListarEmpleadosPendientesDeEmisionUseCase } from './application/listar-empleados-pendientes-emision.use-case';
 import { ListarHistorialRecibosEmpresaUseCase } from './application/listar-historial-recibos-empresa.use-case';
 import { ListarRecibosUseCase } from './application/listar-recibos.use-case';
 import { PrevisualizarReemisionUseCase } from './application/previsualizar-reemision.use-case';
@@ -30,6 +31,7 @@ import { HistorialRecibosController } from './presentation/historial-recibos.con
   controllers: [EmisionController, HistorialRecibosController],
   providers: [
     EmitirRecibosUseCase,
+    ListarEmpleadosPendientesDeEmisionUseCase,
     ListarRecibosUseCase,
     DescargarReciboUseCase,
     AnularReciboUseCase,

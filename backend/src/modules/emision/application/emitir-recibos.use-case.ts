@@ -6,11 +6,13 @@ import { ejecutarConLimite } from '../../../shared/utils/ejecutar-con-limite';
 import { ValidarImportacionUseCase } from '../../validacion/application/validar-importacion.use-case';
 import { Empleado } from '../../empleados/domain/empleado.entity';
 import { EMPLEADO_REPOSITORY, EmpleadoRepository } from '../../empleados/domain/empleado.repository';
+import { ALMACENAMIENTO_LOGO, AlmacenamientoLogo, leerLogoComoDataUri } from '../../empresas/domain/almacenamiento-logo';
 import { EMPRESA_REPOSITORY, EmpresaRepository } from '../../empresas/domain/empresa.repository';
 import { Empresa } from '../../empresas/domain/empresa.entity';
 import { ImportacionFila } from '../../importacion/domain/importacion-fila.entity';
 import { IMPORTACION_REPOSITORY, ImportacionRepository } from '../../importacion/domain/importacion.repository';
 import { ALMACENAMIENTO_RECIBOS, AlmacenamientoRecibos } from '../domain/almacenamiento-recibos';
+import { calcularEmpleadosPendientesDeEmision } from '../domain/calcular-pendientes-emision';
 import { construirSnapshotRecibo } from '../domain/construir-snapshot-recibo';
 import { GENERADOR_PDF, GeneradorPdf } from '../domain/generador-pdf';
 import { Recibo } from '../domain/recibo.entity';
@@ -32,6 +34,7 @@ interface ItemAEmitir {
 
 interface ContextoEmision {
   empresa: Empresa;
+  logoDataUri: string | null;
   importacionId: string;
   anio: number;
   mes: number;
@@ -55,6 +58,7 @@ export class EmitirRecibosUseCase {
     @Inject(RECIBO_REPOSITORY) private readonly reciboRepository: ReciboRepository,
     @Inject(GENERADOR_PDF) private readonly generadorPdf: GeneradorPdf,
     @Inject(ALMACENAMIENTO_RECIBOS) private readonly almacenamiento: AlmacenamientoRecibos,
+    @Inject(ALMACENAMIENTO_LOGO) private readonly almacenamientoLogo: AlmacenamientoLogo,
     private readonly validarImportacion: ValidarImportacionUseCase,
   ) {}
 
@@ -123,21 +127,23 @@ export class EmitirRecibosUseCase {
 
     // La numeración correlativa se asigna acá, antes de paralelizar, para que
     // no dependa del orden real de finalización de cada PDF.
-    const itemsAEmitir: ItemAEmitir[] = [];
-    for (const [cuil, filas] of filasPorCuil) {
-      const empleado = empleadosPorCuil.get(cuil);
-      if (!empleado || empleado.estado === 'inactivo' || empleadosYaEmitidos.has(empleado.id)) {
-        continue;
-      }
-      itemsAEmitir.push({ empleado, filas, numero: numeroInicial + itemsAEmitir.length });
-    }
+    const itemsAEmitir: ItemAEmitir[] = calcularEmpleadosPendientesDeEmision(
+      filasPorCuil,
+      empleadosPorCuil,
+      empleadosYaEmitidos,
+    ).map(({ empleado, filas }, indice) => ({ empleado, filas, numero: numeroInicial + indice }));
 
     if (itemsAEmitir.length === 0 && recibosExistentes.length > 0) {
       throw new DomainError('Ya se emitieron recibos para todos los empleados de esta importación');
     }
 
+    // Una sola lectura para todo el lote (no una por empleado): el logo no
+    // cambia entre un recibo y otro de la misma emisión.
+    const logoDataUri = await leerLogoComoDataUri(empresa, this.almacenamientoLogo);
+
     const contexto: ContextoEmision = {
       empresa,
+      logoDataUri,
       importacionId: importacion.id,
       anio: importacion.anio,
       mes: importacion.mes,
@@ -163,6 +169,7 @@ export class EmitirRecibosUseCase {
         localidad: empresa.localidad,
         provincia: empresa.provincia,
         codigoPostal: empresa.codigoPostal,
+        logoDataUri: contexto.logoDataUri,
       },
       empleado: {
         nombre: empleado.nombre,

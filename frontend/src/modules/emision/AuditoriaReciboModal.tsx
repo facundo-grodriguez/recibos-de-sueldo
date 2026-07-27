@@ -33,6 +33,11 @@ export function AuditoriaReciboModal({ empresaId, recibo, onClose }: AuditoriaRe
                   <Text size="xs" c="dimmed">
                     {new Date(entrada.timestamp).toLocaleString('es-AR')}
                   </Text>
+                  {entrada.accion === 'anular' && recibo.motivoAnulacion && (
+                    <Text size="xs" c="dimmed">
+                      Motivo: {recibo.motivoAnulacion}
+                    </Text>
+                  )}
                 </Timeline.Item>
               ))}
             </Timeline>

@@ -108,9 +108,11 @@ export interface ImportacionRepository {
    */
   findConfirmadasAnteriores(empresaId: string, anio: number, mes: number): Promise<Importacion[]>;
   /**
-   * ¿Existe alguna OTRA importación (cualquier estado) de la empresa para ese mismo año/mes?
-   * Consulta liviana (sin traer filas) — usada solo para avisar de un posible período duplicado
-   * (Etapa 3), nunca para bloquear: puede ser intencional (reimportar corrigiendo un archivo).
+   * ¿Existe alguna OTRA importación no descartada (previsualizada o confirmada) de la empresa
+   * para ese mismo año/mes? Consulta liviana (sin traer filas) — usada solo para avisar de un
+   * posible período duplicado (Etapa 3), nunca para bloquear: puede ser intencional (reimportar
+   * corrigiendo un archivo). Las descartadas no cuentan: nunca pueden confirmarse ni emitir
+   * recibos, así que no representan el riesgo que este aviso busca prevenir.
    */
   existeOtraEnMismoPeriodo(empresaId: string, anio: number, mes: number, idAExcluir: string): Promise<boolean>;
 }

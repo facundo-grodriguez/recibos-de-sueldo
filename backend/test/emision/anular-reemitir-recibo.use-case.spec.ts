@@ -21,6 +21,7 @@ import { ReciboSnapshot } from '../../src/modules/emision/domain/recibo-snapshot
 import { AuditLogRepository, CrearAuditLogEntryData } from '../../src/infra/auditoria/audit-log.repository';
 import { ValidarImportacionUseCase } from '../../src/modules/validacion/application/validar-importacion.use-case';
 import { Empleado } from '../../src/modules/empleados/domain/empleado.entity';
+import { AlmacenamientoLogo } from '../../src/modules/empresas/domain/almacenamiento-logo';
 import { Empresa } from '../../src/modules/empresas/domain/empresa.entity';
 import { EmpresaRepository } from '../../src/modules/empresas/domain/empresa.repository';
 import { Importacion } from '../../src/modules/importacion/domain/importacion.entity';
@@ -271,6 +272,16 @@ class AlmacenamientoRecibosFake implements AlmacenamientoRecibos {
   }
 }
 
+class AlmacenamientoLogoFake implements AlmacenamientoLogo {
+  async guardar(): Promise<string> {
+    throw new Error('no usado en este test');
+  }
+
+  async leer(): Promise<Buffer> {
+    throw new Error('no usado en este test');
+  }
+}
+
 function filaRemunerativa(cuil: string, nombre: string, apellido: string, monto: number, id: string): ImportacionFila {
   return ImportacionFila.create({
     id,
@@ -413,6 +424,7 @@ describe('ReemitirReciboUseCase', () => {
   let reciboRepository: ReciboRepositoryFake;
   let generadorPdf: GeneradorPdfFake;
   let almacenamiento: AlmacenamientoRecibosFake;
+  let almacenamientoLogo: AlmacenamientoLogoFake;
   let auditLogRepository: AuditLogRepositoryFake;
   let useCase: ReemitirReciboUseCase;
 
@@ -423,6 +435,7 @@ describe('ReemitirReciboUseCase', () => {
     reciboRepository = new ReciboRepositoryFake();
     generadorPdf = new GeneradorPdfFake();
     almacenamiento = new AlmacenamientoRecibosFake();
+    almacenamientoLogo = new AlmacenamientoLogoFake();
     auditLogRepository = new AuditLogRepositoryFake();
 
     const validarImportacion = new ValidarImportacionUseCase(empresaRepository, importacionRepository, empleadoRepository);
@@ -433,6 +446,7 @@ describe('ReemitirReciboUseCase', () => {
       reciboRepository,
       generadorPdf,
       almacenamiento,
+      almacenamientoLogo,
       auditLogRepository,
       validarImportacion,
     );

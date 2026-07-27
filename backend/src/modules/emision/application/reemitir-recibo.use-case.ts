@@ -5,6 +5,7 @@ import { DomainError } from '../../../shared/errors/domain-error';
 import { NotFoundError } from '../../../shared/errors/not-found-error';
 import { ValidarImportacionUseCase } from '../../validacion/application/validar-importacion.use-case';
 import { EMPLEADO_REPOSITORY, EmpleadoRepository } from '../../empleados/domain/empleado.repository';
+import { ALMACENAMIENTO_LOGO, AlmacenamientoLogo, leerLogoComoDataUri } from '../../empresas/domain/almacenamiento-logo';
 import { EMPRESA_REPOSITORY, EmpresaRepository } from '../../empresas/domain/empresa.repository';
 import {
   CambiosFilaImportacion,
@@ -47,6 +48,7 @@ export class ReemitirReciboUseCase {
     @Inject(RECIBO_REPOSITORY) private readonly reciboRepository: ReciboRepository,
     @Inject(GENERADOR_PDF) private readonly generadorPdf: GeneradorPdf,
     @Inject(ALMACENAMIENTO_RECIBOS) private readonly almacenamiento: AlmacenamientoRecibos,
+    @Inject(ALMACENAMIENTO_LOGO) private readonly almacenamientoLogo: AlmacenamientoLogo,
     @Inject(AUDIT_LOG_REPOSITORY) private readonly auditLogRepository: AuditLogRepository,
     private readonly validarImportacion: ValidarImportacionUseCase,
   ) {}
@@ -117,6 +119,7 @@ export class ReemitirReciboUseCase {
         localidad: empresa.localidad,
         provincia: empresa.provincia,
         codigoPostal: empresa.codigoPostal,
+        logoDataUri: await leerLogoComoDataUri(empresa, this.almacenamientoLogo),
       },
       empleado: {
         nombre: empleado.nombre,

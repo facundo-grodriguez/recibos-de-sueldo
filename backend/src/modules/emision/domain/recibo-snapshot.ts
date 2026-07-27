@@ -5,6 +5,10 @@ export interface ReciboSnapshotEmpresa {
   localidad: string | null;
   provincia: string | null;
   codigoPostal: string | null;
+  /** Logo de la empresa ya codificado como data URI (ej. "data:image/png;base64,..."), congelado
+   * al momento de emitir — mismo principio de inmutabilidad que el resto de los datos de Empresa
+   * (ADR-071): si el logo cambia después, un recibo ya emitido no se entera. */
+  logoDataUri: string | null;
 }
 
 export interface ReciboSnapshotEmpleado {

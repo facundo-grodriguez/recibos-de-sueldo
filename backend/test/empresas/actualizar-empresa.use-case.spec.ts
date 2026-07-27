@@ -42,6 +42,10 @@ class EmpresaRepositoryFake implements EmpresaRepository {
     });
     return this.empresa;
   }
+
+  async actualizarLogo(): Promise<Empresa> {
+    throw new Error('no usado en este test');
+  }
 }
 
 describe('ActualizarEmpresaUseCase', () => {

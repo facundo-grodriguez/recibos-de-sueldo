@@ -81,12 +81,12 @@ export class ImportacionController {
     @Param('id') id: string,
     @CurrentUser() user: AuthenticatedUser,
   ) {
-    const { importacion, hayOtraImportacionEnMismoPeriodo } = await this.obtenerImportacion.execute({
+    const { importacion, hayOtraImportacionEnMismoPeriodo, conceptosCatalogados } = await this.obtenerImportacion.execute({
       importacionId: id,
       empresaId,
       usuarioId: user.id,
     });
-    return toImportacionResponse(importacion, hayOtraImportacionEnMismoPeriodo);
+    return toImportacionResponse(importacion, hayOtraImportacionEnMismoPeriodo, conceptosCatalogados);
   }
 
   @Post(':id/confirmar')

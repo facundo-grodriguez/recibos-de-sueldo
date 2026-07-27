@@ -103,7 +103,9 @@ export function reconocerEmpleado(
 
   // ADR-079: reimportar el CUIL de un inactivo nunca lo reactiva solo — solo avisa, la reactivación sigue siendo manual.
   if (conocido.estado === 'inactivo') {
-    correcciones.push('Este CUIL corresponde a un empleado inactivo — no se reactiva solo, revisar antes de emitir');
+    correcciones.push(
+      `${conocido.nombre} ${conocido.apellido} (este CUIL) es un empleado inactivo — no se reactiva solo, revisar antes de emitir`,
+    );
   }
 
   return { identidad: completado, correcciones };

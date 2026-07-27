@@ -1,19 +1,16 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useQueryClient } from '@tanstack/react-query';
 import { Alert, Anchor, Badge, Button, Grid, Group, Stack, Text, Title } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import { IconArrowLeft } from '@tabler/icons-react';
 import { Link, useNavigate, useParams } from 'react-router';
 import { ApiError } from '../../shared/api/http';
 import { ConfirmModal } from '../../shared/ui/ConfirmModal';
-import { ClasificarConceptoModal } from '../catalogo-conceptos/ClasificarConceptoModal';
-import { useConceptosSinClasificar } from '../catalogo-conceptos/queries';
 import { EmisionSection } from '../emision/EmisionSection';
 import { useValidacion } from '../validacion/queries';
 import type { ImportacionFila } from './api';
 import { CorregirFilaModal } from './CorregirFilaModal';
 import { NOMBRES_MES } from './nombresMes';
-import { importacionKey, useConfirmarImportacion, useDescartarImportacion, useImportacion } from './queries';
+import { useConfirmarImportacion, useDescartarImportacion, useImportacion } from './queries';
 import { agruparFilasPorEmpleado } from './revision/agruparFilasPorEmpleado';
 import { BarraLateralNavegacion } from './revision/BarraLateralNavegacion';
 import { BarraResumenSticky } from './revision/BarraResumenSticky';
@@ -25,13 +22,11 @@ export function ImportacionDetailPage() {
   const { empresaId, importacionId } = useParams<{ empresaId: string; importacionId: string }>();
   const navigate = useNavigate();
   const { data: importacion, isLoading, isError } = useImportacion(empresaId ?? '', importacionId ?? '');
-  const { data: conceptosPendientes } = useConceptosSinClasificar(empresaId ?? '');
   // Reutiliza el mismo endpoint que EmisionSection (Paso 2). `.totales` se muestra siempre;
   // `.errores`/`.advertencias` (juicio de negocio) solo se leen una vez confirmada la
   // importación (ver `estadoNegocioPorCuil` más abajo y ADR-076) — nunca durante la corrección
   // línea por línea.
   const { data: validacion } = useValidacion(empresaId ?? '', importacionId ?? '');
-  const [conceptoAClasificar, setConceptoAClasificar] = useState<string | undefined>(undefined);
   const [filaACorregir, setFilaACorregir] = useState<ImportacionFila | undefined>(undefined);
   const [busqueda, setBusqueda] = useState('');
   const [filtro, setFiltro] = useState<FiltroEstadoRevision>('todos');
@@ -40,7 +35,6 @@ export function ImportacionDetailPage() {
   const [confirmarAbierto, setConfirmarAbierto] = useState(false);
   const [descartarAbierto, setDescartarAbierto] = useState(false);
   const refsGrupo = useRef(new Map<string, HTMLDivElement>());
-  const queryClient = useQueryClient();
   const confirmar = useConfirmarImportacion(empresaId ?? '', importacionId ?? '');
   const descartar = useDescartarImportacion(empresaId ?? '', importacionId ?? '');
 
@@ -92,10 +86,6 @@ export function ImportacionDetailPage() {
 
   if (isError || !importacion || !empresaId || !importacionId) {
     return <Alert color="red">Importación no encontrada.</Alert>;
-  }
-
-  function refrescarImportacion(): void {
-    void queryClient.invalidateQueries({ queryKey: importacionKey(empresaId as string, importacionId as string) });
   }
 
   async function handleConfirmar(): Promise<void> {
@@ -240,21 +230,6 @@ export function ImportacionDetailPage() {
         </Alert>
       )}
 
-      {conceptosPendientes && conceptosPendientes.length > 0 && (
-        <Alert color="yellow" title="Conceptos sin clasificar en esta empresa">
-          <Stack gap="xs">
-            {conceptosPendientes.map((concepto) => (
-              <Group key={concepto} justify="space-between">
-                <Text size="sm">{concepto}</Text>
-                <Button size="xs" variant="light" onClick={() => setConceptoAClasificar(concepto)}>
-                  Clasificar
-                </Button>
-              </Group>
-            ))}
-          </Stack>
-        </Alert>
-      )}
-
       <BarraResumenSticky
         importacion={importacion}
         filtro={filtro}
@@ -304,12 +279,6 @@ export function ImportacionDetailPage() {
 
       {importacion.estado === 'confirmada' && <EmisionSection empresaId={empresaId} importacion={importacion} />}
 
-      <ClasificarConceptoModal
-        empresaId={empresaId}
-        concepto={conceptoAClasificar}
-        onClose={() => setConceptoAClasificar(undefined)}
-        onClasificado={refrescarImportacion}
-      />
       <CorregirFilaModal
         empresaId={empresaId}
         importacionId={importacionId}

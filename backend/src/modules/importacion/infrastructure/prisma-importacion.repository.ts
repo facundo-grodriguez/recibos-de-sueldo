@@ -306,7 +306,10 @@ export class PrismaImportacionRepository implements ImportacionRepository {
 
   async existeOtraEnMismoPeriodo(empresaId: string, anio: number, mes: number, idAExcluir: string): Promise<boolean> {
     const cantidad = await this.prisma.importacion.count({
-      where: { empresaId, anio, mes, id: { not: idAExcluir } },
+      // 'descartada' nunca puede llegar a confirmarse ni emitirse (ver
+      // EstadoImportacion) — no representa ningún riesgo real de duplicar
+      // recibos, así que no cuenta para este aviso.
+      where: { empresaId, anio, mes, estado: { not: 'descartada' }, id: { not: idAExcluir } },
     });
     return cantidad > 0;
   }

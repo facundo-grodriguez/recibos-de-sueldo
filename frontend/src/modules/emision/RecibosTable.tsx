@@ -1,6 +1,7 @@
-import { Badge, Button, Group, Stack, Table, Text } from '@mantine/core';
+import { ActionIcon, Badge, Button, Group, Stack, Table, Text } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
-import { useState } from 'react';
+import { IconChevronDown, IconChevronRight } from '@tabler/icons-react';
+import { Fragment, useMemo, useState } from 'react';
 import { Link } from 'react-router';
 import { useAuth } from '../../shared/auth/AuthContext';
 import { AnularReciboModal } from './AnularReciboModal';
@@ -12,17 +13,77 @@ import { ReemitirReciboModal } from './ReemitirReciboModal';
 interface RecibosTableProps {
   empresaId: string;
   recibos: Recibo[];
+  /** "Ver importación" tiene sentido en el historial global (recibos de varias importaciones
+   * distintas), pero no dentro de la propia pantalla de una importación — ahí apuntaría a la
+   * misma página en la que ya se está. Default true (historial global). */
+  mostrarLinkImportacion?: boolean;
 }
 
-export function RecibosTable({ empresaId, recibos }: RecibosTableProps) {
+/** Vigente primero, después todos los anulados juntos (nunca intercalados entre sí). */
+const ORDEN_ESTADO: Record<string, number> = { vigente: 0, anulado: 1 };
+
+interface GrupoRecibosPersona {
+  cuil: string;
+  /** Fila que se ve siempre: el vigente si hay uno, o el más reciente de sus anulados si no. */
+  representante: Recibo;
+  /** El resto de los recibos de la misma persona (historial de anulaciones/reemisiones), más
+   * viejo a más nuevo — solo visible al desplegar. Vacío si la persona tiene un único recibo. */
+  resto: Recibo[];
+}
+
+/** Agrupa por CUIL: una persona con varios recibos (típicamente una cadena anular→reemitir
+ * repetida para el mismo período) pasa a ser un solo grupo con una flechita de despliegue, en
+ * vez de una fila por recibo repitiendo el nombre. */
+function agruparPorPersona(recibos: Recibo[]): GrupoRecibosPersona[] {
+  const porCuil = new Map<string, Recibo[]>();
+  for (const recibo of recibos) {
+    const lista = porCuil.get(recibo.cuil) ?? [];
+    lista.push(recibo);
+    porCuil.set(recibo.cuil, lista);
+  }
+
+  const grupos: GrupoRecibosPersona[] = [];
+  for (const [cuil, lista] of porCuil) {
+    const ordenados = [...lista].sort((a, b) => b.numero - a.numero);
+    const representante = ordenados.find((r) => r.estado === 'vigente') ?? ordenados[0];
+    const resto = ordenados.filter((r) => r.id !== representante.id).reverse();
+    grupos.push({ cuil, representante, resto });
+  }
+
+  grupos.sort((a, b) => {
+    const ordenA = ORDEN_ESTADO[a.representante.estado] ?? 99;
+    const ordenB = ORDEN_ESTADO[b.representante.estado] ?? 99;
+    if (ordenA !== ordenB) return ordenA - ordenB;
+    return a.representante.apellido.localeCompare(b.representante.apellido, 'es');
+  });
+
+  return grupos;
+}
+
+export function RecibosTable({ empresaId, recibos, mostrarLinkImportacion = true }: RecibosTableProps) {
   const { token } = useAuth();
   const [reciboAAnular, setReciboAAnular] = useState<Recibo | undefined>(undefined);
   const [reciboAuditoria, setReciboAuditoria] = useState<Recibo | undefined>(undefined);
   const [reciboAReemitir, setReciboAReemitir] = useState<Recibo | undefined>(undefined);
   const [descargandoId, setDescargandoId] = useState<string | undefined>(undefined);
+  const [expandidos, setExpandidos] = useState<Set<string>>(new Set());
+
+  const grupos = useMemo(() => agruparPorPersona(recibos), [recibos]);
 
   // Un recibo anulado ya reemitido no debe ofrecer "Reemitir" de nuevo (el backend lo rechazaría).
   const yaReemplazados = new Set(recibos.map((r) => r.reemplazaAId).filter((id): id is string => id !== null));
+
+  function toggleExpandido(cuil: string): void {
+    setExpandidos((anterior) => {
+      const copia = new Set(anterior);
+      if (copia.has(cuil)) {
+        copia.delete(cuil);
+      } else {
+        copia.add(cuil);
+      }
+      return copia;
+    });
+  }
 
   async function handleDescargar(recibo: Recibo): Promise<void> {
     setDescargandoId(recibo.id);
@@ -35,11 +96,50 @@ export function RecibosTable({ empresaId, recibos }: RecibosTableProps) {
     }
   }
 
+  function filaAcciones(recibo: Recibo) {
+    return (
+      <Group gap="xs">
+        <Button
+          size="xs"
+          variant="light"
+          loading={descargandoId === recibo.id}
+          onClick={() => void handleDescargar(recibo)}
+        >
+          Descargar
+        </Button>
+        {recibo.estado === 'vigente' && (
+          <Button size="xs" variant="light" color="red" onClick={() => setReciboAAnular(recibo)}>
+            Anular
+          </Button>
+        )}
+        {recibo.estado === 'anulado' && !yaReemplazados.has(recibo.id) && (
+          <Button size="xs" variant="light" onClick={() => setReciboAReemitir(recibo)}>
+            Reemitir
+          </Button>
+        )}
+        <Button size="xs" variant="subtle" onClick={() => setReciboAuditoria(recibo)}>
+          Ver auditoría
+        </Button>
+        {mostrarLinkImportacion && (
+          <Button
+            size="xs"
+            variant="subtle"
+            component={Link}
+            to={`/empresas/${empresaId}/importaciones/${recibo.importacionId}`}
+          >
+            Ver importación
+          </Button>
+        )}
+      </Group>
+    );
+  }
+
   return (
     <Stack gap="sm">
       <Table>
         <Table.Thead>
           <Table.Tr>
+            <Table.Th />
             <Table.Th>N°</Table.Th>
             <Table.Th>Apellido y nombre</Table.Th>
             <Table.Th>CUIL</Table.Th>
@@ -49,63 +149,60 @@ export function RecibosTable({ empresaId, recibos }: RecibosTableProps) {
           </Table.Tr>
         </Table.Thead>
         <Table.Tbody>
-          {recibos.map((recibo) => (
-            <Table.Tr key={recibo.id}>
-              <Table.Td>{recibo.numero}</Table.Td>
-              <Table.Td>
-                {recibo.apellido}, {recibo.nombre}
-              </Table.Td>
-              <Table.Td>{recibo.cuil}</Table.Td>
-              <Table.Td>
-                {recibo.neto.toLocaleString('es-AR', { style: 'currency', currency: 'ARS' })}
-              </Table.Td>
-              <Table.Td>
-                <Stack gap={2}>
-                  <Badge color={recibo.estado === 'vigente' ? 'green' : 'red'}>
-                    {recibo.estado === 'vigente' ? 'Vigente' : 'Anulado'}
-                  </Badge>
-                  {recibo.motivoAnulacion && (
-                    <Text size="xs" c="dimmed">
-                      {recibo.motivoAnulacion}
-                    </Text>
-                  )}
-                </Stack>
-              </Table.Td>
-              <Table.Td>
-                <Group gap="xs">
-                  <Button
-                    size="xs"
-                    variant="light"
-                    loading={descargandoId === recibo.id}
-                    onClick={() => void handleDescargar(recibo)}
-                  >
-                    Descargar
-                  </Button>
-                  {recibo.estado === 'vigente' && (
-                    <Button size="xs" variant="light" color="red" onClick={() => setReciboAAnular(recibo)}>
-                      Anular
-                    </Button>
-                  )}
-                  {recibo.estado === 'anulado' && !yaReemplazados.has(recibo.id) && (
-                    <Button size="xs" variant="light" onClick={() => setReciboAReemitir(recibo)}>
-                      Reemitir
-                    </Button>
-                  )}
-                  <Button size="xs" variant="subtle" onClick={() => setReciboAuditoria(recibo)}>
-                    Ver auditoría
-                  </Button>
-                  <Button
-                    size="xs"
-                    variant="subtle"
-                    component={Link}
-                    to={`/empresas/${empresaId}/importaciones/${recibo.importacionId}`}
-                  >
-                    Ver importación
-                  </Button>
-                </Group>
-              </Table.Td>
-            </Table.Tr>
-          ))}
+          {grupos.map((grupo) => {
+            const tieneHistorial = grupo.resto.length > 0;
+            const expandido = expandidos.has(grupo.cuil);
+            return (
+              <Fragment key={grupo.cuil}>
+                <Table.Tr>
+                  <Table.Td>
+                    {tieneHistorial && (
+                      <ActionIcon variant="subtle" size="sm" onClick={() => toggleExpandido(grupo.cuil)}>
+                        {expandido ? <IconChevronDown size={14} /> : <IconChevronRight size={14} />}
+                      </ActionIcon>
+                    )}
+                  </Table.Td>
+                  <Table.Td>{grupo.representante.numero}</Table.Td>
+                  <Table.Td>
+                    {grupo.representante.apellido}, {grupo.representante.nombre}
+                  </Table.Td>
+                  <Table.Td>{grupo.representante.cuil}</Table.Td>
+                  <Table.Td>
+                    {grupo.representante.neto.toLocaleString('es-AR', { style: 'currency', currency: 'ARS' })}
+                  </Table.Td>
+                  <Table.Td>
+                    <Group gap={6} wrap="nowrap">
+                      <Badge color={grupo.representante.estado === 'vigente' ? 'green' : 'red'}>
+                        {grupo.representante.estado === 'vigente' ? 'Vigente' : 'Anulado'}
+                      </Badge>
+                      {tieneHistorial && (
+                        <Text size="xs" c="dimmed">
+                          +{grupo.resto.length} anulado{grupo.resto.length > 1 ? 's' : ''}
+                        </Text>
+                      )}
+                    </Group>
+                  </Table.Td>
+                  <Table.Td>{filaAcciones(grupo.representante)}</Table.Td>
+                </Table.Tr>
+                {expandido &&
+                  grupo.resto.map((recibo) => (
+                    <Table.Tr key={recibo.id} c="dimmed">
+                      <Table.Td />
+                      <Table.Td>{recibo.numero}</Table.Td>
+                      <Table.Td />
+                      <Table.Td />
+                      <Table.Td>{recibo.neto.toLocaleString('es-AR', { style: 'currency', currency: 'ARS' })}</Table.Td>
+                      <Table.Td>
+                        <Badge color="red" variant="light">
+                          Anulado
+                        </Badge>
+                      </Table.Td>
+                      <Table.Td>{filaAcciones(recibo)}</Table.Td>
+                    </Table.Tr>
+                  ))}
+              </Fragment>
+            );
+          })}
         </Table.Tbody>
       </Table>
       <AnularReciboModal empresaId={empresaId} recibo={reciboAAnular} onClose={() => setReciboAAnular(undefined)} />

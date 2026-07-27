@@ -11,6 +11,7 @@ import { DescargarLoteRecibosUseCase } from '../application/descargar-lote-recib
 import { DescargarReciboUseCase } from '../application/descargar-recibo.use-case';
 import { EmitirRecibosUseCase } from '../application/emitir-recibos.use-case';
 import { ListarAuditoriaReciboUseCase } from '../application/listar-auditoria-recibo.use-case';
+import { ListarEmpleadosPendientesDeEmisionUseCase } from '../application/listar-empleados-pendientes-emision.use-case';
 import { ListarRecibosUseCase } from '../application/listar-recibos.use-case';
 import { PrevisualizarReemisionUseCase } from '../application/previsualizar-reemision.use-case';
 import { ReemitirReciboUseCase } from '../application/reemitir-recibo.use-case';
@@ -31,6 +32,7 @@ export class EmisionController {
     private readonly previsualizarReemision: PrevisualizarReemisionUseCase,
     private readonly descargarLoteRecibos: DescargarLoteRecibosUseCase,
     private readonly listarAuditoriaRecibo: ListarAuditoriaReciboUseCase,
+    private readonly listarEmpleadosPendientesDeEmision: ListarEmpleadosPendientesDeEmisionUseCase,
   ) {}
 
   @Post('emitir')
@@ -86,6 +88,25 @@ export class EmisionController {
       'Content-Disposition': construirContentDisposition(nombreArchivoRecibo(recibo)),
     });
     return new StreamableFile(contenido);
+  }
+
+  @Get('pendientes')
+  async pendientes(
+    @Param('empresaId') empresaId: string,
+    @Param('id') id: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    const empleados = await this.listarEmpleadosPendientesDeEmision.execute({
+      importacionId: id,
+      empresaId,
+      usuarioId: user.id,
+    });
+    return empleados.map((empleado) => ({
+      id: empleado.id,
+      nombre: empleado.nombre,
+      apellido: empleado.apellido,
+      cuil: empleado.cuil.formatted,
+    }));
   }
 
   @Get('descargar-lote')

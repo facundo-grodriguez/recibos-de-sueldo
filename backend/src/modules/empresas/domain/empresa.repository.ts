@@ -27,6 +27,8 @@ export interface EmpresaRepository {
   findAllByUsuario(usuarioId: string): Promise<Empresa[]>;
   findByIdAndUsuario(id: string, usuarioId: string): Promise<Empresa | null>;
   actualizar(id: string, data: ActualizarEmpresaData): Promise<Empresa>;
+  /** Aparte de `actualizar`: sube por un flujo de archivo (multipart), no por el PATCH genérico de datos de texto. */
+  actualizarLogo(id: string, logoPath: string | null): Promise<Empresa>;
 }
 
 export const EMPRESA_REPOSITORY = Symbol('EmpresaRepository');

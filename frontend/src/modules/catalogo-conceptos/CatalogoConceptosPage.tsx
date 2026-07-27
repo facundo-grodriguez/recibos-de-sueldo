@@ -1,20 +1,24 @@
-import { Anchor, Button, Group, Stack, Table, Text, Title } from '@mantine/core';
+import { Alert, Anchor, Button, Group, Stack, Table, Text, Title } from '@mantine/core';
 import { IconArrowLeft } from '@tabler/icons-react';
 import { useState } from 'react';
 import { Link, useParams } from 'react-router';
 import { useEmpresa, useEmpresas } from '../empresas/queries';
 import { ClasificarConceptoModal } from './ClasificarConceptoModal';
-import { useCatalogoConceptos } from './queries';
+import { useCatalogoConceptos, useConceptosSinClasificar } from './queries';
 import { ETIQUETAS_CATEGORIA_CONTRIBUCION, ETIQUETAS_TIPO_CONCEPTO, type DefinirConceptoCatalogoFormValues } from './schema';
 
 /** Catálogo de conceptos ya clasificados de la empresa — cierra un pendiente viejo (ADR-064) y
  * habilita corregir una clasificación equivocada (Etapa 3): antes, un concepto ya clasificado
- * desaparecía para siempre de la alerta de "sin clasificar" y no había forma de volver a editarlo. */
+ * desaparecía para siempre de la alerta de "sin clasificar" y no había forma de volver a editarlo.
+ * Los conceptos nuevos (todavía sin clasificar) se clasifican también desde acá, no desde la
+ * pantalla de importación — mapear en medio de la revisión de una importación era denso; acá el
+ * contador lo hace a su ritmo, sin la presión de tener la importación abierta al lado. */
 export function CatalogoConceptosPage() {
   const { empresaId } = useParams<{ empresaId: string }>();
   const { isLoading: cargandoEmpresas } = useEmpresas();
   const empresa = useEmpresa(empresaId);
   const { data: conceptos, isLoading, isError } = useCatalogoConceptos(empresaId ?? '');
+  const { data: pendientes } = useConceptosSinClasificar(empresaId ?? '');
   const [conceptoAEditar, setConceptoAEditar] = useState<string | undefined>(undefined);
 
   if (cargandoEmpresas) {
@@ -44,12 +48,27 @@ export function CatalogoConceptosPage() {
 
       <Title order={2}>Conceptos de la empresa</Title>
 
+      {pendientes && pendientes.length > 0 && (
+        <Alert color="yellow" title="Conceptos sin clasificar">
+          <Stack gap="xs">
+            {pendientes.map((concepto) => (
+              <Group key={concepto} justify="space-between">
+                <Text size="sm">{concepto}</Text>
+                <Button size="xs" variant="light" onClick={() => setConceptoAEditar(concepto)}>
+                  Clasificar
+                </Button>
+              </Group>
+            ))}
+          </Stack>
+        </Alert>
+      )}
+
       {isError && <Text c="red">No se pudieron cargar los conceptos.</Text>}
 
       {isLoading && <Text c="dimmed">Cargando…</Text>}
 
       {!isLoading && !isError && conceptos && conceptos.length === 0 && (
-        <Text c="dimmed">Todavía no se clasificó ningún concepto. Se van agregando desde la pantalla de importación.</Text>
+        <Text c="dimmed">Todavía no se clasificó ningún concepto.</Text>
       )}
 
       {conceptos && conceptos.length > 0 && (

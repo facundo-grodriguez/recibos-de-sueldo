@@ -1,19 +1,21 @@
 import { CategoriaContribucion } from '../../../shared/value-objects/clasificacion-concepto';
 
-// Paleta categórica validada (9 slots, orden fijo, no cíclico — ver skill de
+// Paleta categórica validada (9 hues, orden fijo, no cíclico — ver skill de
 // dataviz: CVD-safe en pares adyacentes, que es como se leen los gajos de
-// una torta). Slot 1 para Sueldo Bruto; slots 2-9 en el mismo orden en que
-// el Anexo III lista las categorías. El gráfico de torta representa
-// pura y exclusivamente el gasto del empleador (Sueldo Bruto + contribución
-// patronal cruda por categoría, sin combinar con la deducción del
-// trabajador) — el cruce Empleador/Trabajador se aclara aparte, en el
-// "Detalle de composición salarial" (decisión de producto, 2026-07-23,
-// reemplaza la lectura "oficial" combinada de ADR-056). 'ganancias'
-// (ADR-068) nunca es una contribución patronal real (ver
-// clasificacion-concepto.ts) — su columna "Empleador" siempre es $0, así
-// que nunca aparece como gajo del gráfico (si aparece en el detalle de
-// composición, sí, como deducción pura del trabajador).
-export const COLOR_BRUTO = '#2a78d6';
+// una torta). Slot 1 para Sueldo Neto; slots 2-9 en el mismo orden en que
+// el Anexo III lista las categorías. Desde la revisión de diseño del
+// 2026-07-27 (ver ADR en DECISIONS.md), el gráfico de torta abre el costo
+// laboral total en Sueldo Neto + un gajo por categoría con el monto
+// COMBINADO (Empleador+Trabajador) de esa categoría — nunca separado por
+// lado (más simple de leer que dos gajos por categoría). Una categoría sin
+// ningún aporte patronal (ej. 'ganancias', ADR-068 — el empleador nunca
+// aporta un peso ahí) no consigue gajo propio con su nombre: mostrarla
+// combinada sería indistinguible de una contribución patronal real que sí
+// existe (el problema que motivó ADR-080). En cambio, su monto se redirige
+// al gajo "Otros" — categoría ya prevista para lo que no tiene identidad
+// propia en la torta, en vez de inventar una regla especial por nombre de
+// categoría.
+export const COLOR_NETO = '#2a78d6';
 
 export const CATEGORIAS_CONTRIBUCION_ORDEN: Array<{
   categoria: CategoriaContribucion;

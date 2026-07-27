@@ -4,6 +4,7 @@ import {
   anularRecibo,
   type AjusteFilaReemision,
   emitirRecibos,
+  listarEmpleadosPendientesDeEmision,
   listarHistorialRecibos,
   listarRecibos,
   obtenerAuditoriaRecibo,
@@ -13,6 +14,10 @@ import {
 
 export function recibosKey(empresaId: string, importacionId: string) {
   return ['recibos', empresaId, importacionId] as const;
+}
+
+export function pendientesEmisionKey(empresaId: string, importacionId: string) {
+  return ['recibos-pendientes', empresaId, importacionId] as const;
 }
 
 export function historialRecibosKey(empresaId: string, empleadoId?: string, pagina?: number) {
@@ -57,7 +62,18 @@ export function useEmitirRecibos(empresaId: string, importacionId: string) {
     mutationFn: () => emitirRecibos(token as string, empresaId, importacionId),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: recibosKey(empresaId, importacionId) });
+      void queryClient.invalidateQueries({ queryKey: pendientesEmisionKey(empresaId, importacionId) });
     },
+  });
+}
+
+/** Empleados activos de esta importación sin recibo todavía (ej. reactivados después de emitir el resto del lote). */
+export function useEmpleadosPendientesDeEmision(empresaId: string, importacionId: string) {
+  const { token } = useAuth();
+  return useQuery({
+    queryKey: pendientesEmisionKey(empresaId, importacionId),
+    queryFn: () => listarEmpleadosPendientesDeEmision(token as string, empresaId, importacionId),
+    enabled: token !== null && empresaId !== '' && importacionId !== '',
   });
 }
 

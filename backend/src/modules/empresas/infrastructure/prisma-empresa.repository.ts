@@ -48,4 +48,9 @@ export class PrismaEmpresaRepository implements EmpresaRepository {
     });
     return Empresa.create(registro);
   }
+
+  async actualizarLogo(id: string, logoPath: string | null): Promise<Empresa> {
+    const registro = await this.prisma.empresa.update({ where: { id }, data: { logoPath } });
+    return Empresa.create(registro);
+  }
 }
