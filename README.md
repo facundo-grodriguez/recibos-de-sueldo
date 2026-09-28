@@ -281,6 +281,13 @@ DATABASE_URL="postgresql://..." npm run restore -- backups/<timestamp>   # 2. da
 
 ## Seguridad
 
+### Seguridad y credenciales
+
+- **Generá `JWT_SECRET` y `ADMIN_REGISTRATION_TOKEN` propios antes de producción** — nunca los valores de `.env.example`. El server directamente no arranca en producción (`NODE_ENV=production`) si detecta que alguno de los dos sigue siendo el placeholder del ejemplo (`env.schema.ts`); en desarrollo/test no bloquea. Generar uno: `node -e "console.log(require('crypto').randomBytes(32).toString('base64url'))"`.
+- **No hay usuario admin por defecto.** Cada instalación registra su propia primera cuenta con `POST /auth/register`, usando el `ADMIN_REGISTRATION_TOKEN` que vos mismo generaste — no viene ninguna cuenta precreada. Ver "Registro cerrado" más abajo y `OPERACION.md`.
+- **Las credenciales `recibos`/`recibos` de `scripts/dev-db.mjs`** son solo para la base de Postgres embebida de desarrollo local (escucha únicamente en `127.0.0.1`) — nunca usarlas en producción, donde `POSTGRES_PASSWORD` se genera aparte (ver `.env.example` en la raíz de `app/`).
+- **No subas `uploads/` ni datos reales de recibos/empleados al repo** — ya está en `.gitignore`, pero si alguna vez necesitás compartir un caso de prueba, generá datos ficticios, nunca copies un recibo real.
+
 Alcance deliberadamente mínimo para un piloto acompañado (una instancia, un cliente) — no es endurecimiento para Internet abierta (eso queda para cuando haya evidencia de que hace falta, ver más abajo):
 
 - **Registro cerrado.** `POST /auth/register` exige el header `X-Admin-Registration-Token` (`AdminRegistrationGuard`, comparación en tiempo constante) — sin él, 403. Quien administra la instancia crea cada cuenta nueva; no hay alta pública. La pantalla `/register` del frontend sigue existiendo (para uso propio, pidiendo el token en el formulario), pero ya no está enlazada desde el login. Procedimiento paso a paso: **`OPERACION.md`**.

@@ -7,10 +7,13 @@ uploads/
 backups/
 *.tsbuildinfo
 .env
-.env.*.local
+.env.*
+!.env.example
+!frontend/.env.production
 rclone.conf
 *.log
 .DS_Store
 Thumbs.db
 .vscode/
 .idea/
+.claude/settings.local.json
